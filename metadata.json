@@ -1,0 +1,8 @@
+{
+  "name": "Remix: Titas Accounting ",
+  "description": "A automated accounting system for titas internet ",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

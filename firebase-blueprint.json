@@ -1,0 +1,411 @@
+{
+  "entities": {
+    "Notification": {
+      "title": "Notification",
+      "description": "A notification for a user",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "type": { "type": "string", "enum": ["new_transaction", "bill_payment", "budget_alert"] },
+        "message": { "type": "string" },
+        "read": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "type", "message", "read", "createdAt"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "Represents an income or expense tracking entry belonging to a user",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique transaction document identifier"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["income", "expense"],
+          "description": "Transaction type (income/expense)"
+        },
+        "title": {
+          "type": "string",
+          "description": "Short title describing the transaction"
+        },
+        "amount": {
+          "type": "number",
+          "description": "Financial amount of the transaction"
+        },
+        "category": {
+          "type": "string",
+          "description": "Category for classification"
+        },
+        "date": {
+          "type": "string",
+          "format": "date",
+          "description": "Calendar date in string format"
+        },
+        "notes": {
+          "type": "string",
+          "description": "Optional additional comments"
+        },
+        "paymentMethod": {
+          "type": "string",
+          "description": "Optional payment method (e.g., Cash, bKash)"
+        },
+        "receivedBy": {
+          "type": "string",
+          "description": "Optional employee name who collected the bill"
+        },
+        "receivedDate": {
+          "type": "string",
+          "format": "date",
+          "description": "Optional billing payment received date"
+        },
+        "clientId": {
+          "type": "string",
+          "description": "Optional linked home user or reseller ID"
+        },
+        "monthlyBill": {
+          "type": "number",
+          "description": "Optional subscriber actual monthly bill"
+        },
+        "billingMonth": {
+          "type": "string",
+          "description": "Optional billing target month (YYYY-MM)"
+        },
+        "collectorName": {
+          "type": "string",
+          "description": "Optional bill collector person name"
+        },
+        "receiverName": {
+          "type": "string",
+          "description": "Optional bill receiver person name"
+        },
+        "rejectionReason": {
+          "type": "string",
+          "description": "Optional cancellation or rejection explanation reason"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "approved", "rejected"],
+          "description": "Optional approval status ('pending', 'approved', or 'rejected') of a manual home user subscriber bill"
+        },
+        "userId": {
+          "type": "string",
+          "description": "Unique ID of the owner user"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Created date-time log"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Updated date-time log"
+        }
+      },
+      "required": ["id", "type", "title", "amount", "category", "date", "userId", "createdAt", "updatedAt"]
+    },
+    "Reseller": {
+      "title": "Reseller",
+      "description": "Represents a reseller broadband account managed by the user",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "userId": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "zone": {
+          "type": "string"
+        },
+        "bandwidth": {
+          "type": "string"
+        },
+        "monthlyBill": {
+          "type": "number"
+        },
+        "totalPaid": {
+          "type": "number"
+        },
+        "totalDue": {
+          "type": "number"
+        },
+        "unpaidMonths": {
+          "type": "number"
+        },
+        "phone": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "string"
+        }
+      },
+      "required": ["id", "userId", "name", "zone", "bandwidth", "monthlyBill", "totalPaid", "totalDue", "unpaidMonths", "phone", "createdAt", "updatedAt"]
+    },
+    "HomeUser": {
+      "title": "HomeUser",
+      "description": "Represents a home internet subscriber account managed by the user",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "userId": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "address": {
+          "type": "string"
+        },
+        "phone": {
+          "type": "string"
+        },
+        "package": {
+          "type": "string"
+        },
+        "monthlyBill": {
+          "type": "number"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["active", "inactive"]
+        },
+        "createdAt": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "string"
+        }
+      },
+      "required": ["id", "userId", "name", "address", "phone", "package", "monthlyBill", "status", "createdAt", "updatedAt"]
+    },
+    "Voucher": {
+      "title": "Voucher",
+      "description": "Daily expense and voucher requests requiring admin or manager approval",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "userId": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "amount": {
+          "type": "number"
+        },
+        "category": {
+          "type": "string"
+        },
+        "date": {
+          "type": "string"
+        },
+        "submittedBy": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "approved", "rejected"]
+        },
+        "notes": {
+          "type": "string"
+        },
+        "rejectionReason": {
+          "type": "string",
+          "description": "Reason input if the voucher is rejected"
+        },
+        "attachmentName": {
+          "type": "string",
+          "description": "Name of the uploaded voucher file"
+        },
+        "attachmentData": {
+          "type": "string",
+          "description": "Base64 encoded file content of the voucher"
+        },
+        "transportLogs": {
+          "type": "array",
+          "description": "Optional list of transport paths and fees if category is transport"
+        },
+        "createdAt": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "string"
+        }
+      },
+      "required": ["id", "userId", "title", "amount", "category", "date", "submittedBy", "status", "createdAt", "updatedAt"]
+    },
+    "DailyClosing": {
+      "title": "DailyClosing",
+      "description": "Represents a single day accounting closure tracking opening and ending balances by payment method",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "userId": {
+          "type": "string"
+        },
+        "date": {
+          "type": "string",
+          "format": "date"
+        },
+        "openingCash": {
+          "type": "number"
+        },
+        "openingBkash": {
+          "type": "number"
+        },
+        "openingNagad": {
+          "type": "number"
+        },
+        "openingRocket": {
+          "type": "number"
+        },
+        "openingBank": {
+          "type": "number"
+        },
+        "openingSsl": {
+          "type": "number"
+        },
+        "closingCash": {
+          "type": "number"
+        },
+        "closingBkash": {
+          "type": "number"
+        },
+        "closingNagad": {
+          "type": "number"
+        },
+        "closingRocket": {
+          "type": "number"
+        },
+        "closingBank": {
+          "type": "number"
+        },
+        "closingSsl": {
+          "type": "number"
+        },
+        "totalCashIn": {
+          "type": "number"
+        },
+        "totalBkashIn": {
+          "type": "number"
+        },
+        "totalNagadIn": {
+          "type": "number"
+        },
+        "totalRocketIn": {
+          "type": "number"
+        },
+        "totalBankIn": {
+          "type": "number"
+        },
+        "totalSslIn": {
+          "type": "number"
+        },
+        "totalCashOut": {
+          "type": "number"
+        },
+        "totalBkashOut": {
+          "type": "number"
+        },
+        "totalNagadOut": {
+          "type": "number"
+        },
+        "totalRocketOut": {
+          "type": "number"
+        },
+        "totalBankOut": {
+          "type": "number"
+        },
+        "totalSslOut": {
+          "type": "number"
+        },
+        "notes": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["open", "closed"]
+        },
+        "closedBy": {
+          "type": "string"
+        },
+        "khaOfficeCash": {
+          "type": "number"
+        },
+        "dhakaOfficeCash": {
+          "type": "number"
+        },
+        "nayanCash": {
+          "type": "number"
+        },
+        "accountCash": {
+          "type": "number"
+        },
+        "transferKhaToNayan": {
+          "type": "number"
+        },
+        "transferNayanToDhaka": {
+          "type": "number"
+        },
+        "transferDhakaToNayan": {
+          "type": "number"
+        },
+        "transferDhakaToKha": {
+          "type": "number"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "userId", "date", "openingCash", "openingBkash", "openingNagad", "openingRocket", "openingBank", "openingSsl", "closingCash", "closingBkash", "closingNagad", "closingRocket", "closingBank", "closingSsl", "totalCashIn", "totalBkashIn", "totalNagadIn", "totalRocketIn", "totalBankIn", "totalSslIn", "totalCashOut", "totalBkashOut", "totalNagadOut", "totalRocketOut", "totalBankOut", "totalSslOut", "status", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/transactions/{transactionId}": {
+      "schema": "Transaction",
+      "description": "Secure storage of personal income and expense transactions"
+    },
+    "/resellers/{resellerId}": {
+      "schema": "Reseller",
+      "description": "Bulk resellers and ISP local bandwidth accounts"
+    },
+    "/home_users/{homeUserId}": {
+      "schema": "HomeUser",
+      "description": "Local home subscriber details and status"
+    },
+    "/vouchers/{voucherId}": {
+      "schema": "Voucher",
+      "description": "Daily expense vouchers list and approval workflow status"
+    },
+    "/daily_closings/{dailyClosingId}": {
+      "schema": "DailyClosing",
+      "description": "Daily audit closure configurations for all payment assets"
+    },
+    "/notifications/{notificationId}": {
+      "schema": "Notification",
+      "description": "Real-time user notifications"
+    }
+  }
+}

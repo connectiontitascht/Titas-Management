@@ -1,0 +1,361 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny catch-all
+    match /{document=**} {
+      allow read, write: if true;
+    }
+
+    // Global helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && get(/databases/$(database)/documents/app_users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Schema Validation Helper for Transactions
+    function isValidTransaction(data) {
+      return (
+        // Key count and required existence checks
+        data.size() >= 7 && data.size() <= 21 &&
+        'id' in data &&
+        'type' in data &&
+        'title' in data &&
+        'amount' in data &&
+        'category' in data &&
+        'date' in data &&
+        'userId' in data &&
+        
+        // Optional key type/size assertions if present during creation/update
+        (!('notes' in data) || (data.notes is string && data.notes.size() <= 1000)) &&
+        (!('rejectionReason' in data) || (data.rejectionReason is string && data.rejectionReason.size() <= 1000)) &&
+        (!('paymentMethod' in data) || (data.paymentMethod is string && data.paymentMethod.size() <= 100)) &&
+        (!('receivedBy' in data) || (data.receivedBy is string && data.receivedBy.size() <= 150)) &&
+        (!('receivedDate' in data) || (data.receivedDate is string && data.receivedDate.size() <= 50)) &&
+        (!('clientId' in data) || (data.clientId is string && data.clientId.size() <= 128)) &&
+        (!('monthlyBill' in data) || ((data.monthlyBill is int || data.monthlyBill is float) && data.monthlyBill >= 0)) &&
+        (!('billingMonth' in data) || (data.billingMonth is string && data.billingMonth.size() <= 50)) &&
+        (!('collectorName' in data) || (data.collectorName is string && data.collectorName.size() <= 150)) &&
+        (!('receiverName' in data) || (data.receiverName is string && data.receiverName.size() <= 150)) &&
+        (!('status' in data) || (data.status is string && (data.status == 'pending' || data.status == 'approved' || data.status == 'rejected'))) &&
+        (!('isDailyClosing' in data) || (data.isDailyClosing is bool)) &&
+        (!('createdAt' in data) || (data.createdAt is timestamp || data.createdAt == request.time)) &&
+        (!('updatedAt' in data) || (data.updatedAt is timestamp || data.updatedAt == request.time)) &&
+        
+        // Value schema and type assertions
+        data.id is string && data.id.size() <= 128 &&
+        (data.type == 'income' || data.type == 'expense') &&
+        data.title is string && data.title.size() >= 1 && data.title.size() <= 150 &&
+        (data.amount is int || data.amount is float) && data.amount > 0 &&
+        data.category is string && data.category.size() <= 50 &&
+        data.date is string && data.date.size() == 10 &&
+        data.userId is string && (data.userId == request.auth.uid || isAdmin())
+      );
+    }
+
+    // Schema Validation Helper for Resellers
+    function isValidReseller(data) {
+      return (
+        data.size() >= 10 && data.size() <= 18 &&
+        'id' in data && 'userId' in data && 'name' in data && 'zone' in data && 'bandwidth' in data && 'monthlyBill' in data && 'totalPaid' in data && 'totalDue' in data && 'unpaidMonths' in data && 'phone' in data && 'createdAt' in data && 'updatedAt' in data &&
+        data.id is string && data.id.size() <= 128 &&
+        data.userId is string && (data.userId == request.auth.uid || isAdmin()) &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 150 &&
+        data.zone is string && data.zone.size() >= 1 && data.zone.size() <= 150 &&
+        data.bandwidth is string && data.bandwidth.size() >= 1 && data.bandwidth.size() <= 100 &&
+        (data.monthlyBill is int || data.monthlyBill is float) && data.monthlyBill >= 0 &&
+        (data.totalPaid is int || data.totalPaid is float) && data.totalPaid >= 0 &&
+        (data.totalDue is int || data.totalDue is float) && data.totalDue >= 0 &&
+        (data.unpaidMonths is int || data.unpaidMonths is float) && data.unpaidMonths >= 0 &&
+        data.phone is string && data.phone.size() <= 50 &&
+        (data.createdAt is timestamp || data.createdAt == request.time) &&
+        (data.updatedAt is timestamp || data.updatedAt == request.time)
+      );
+    }
+
+    // Schema Validation Helper for Home Users
+    function isValidHomeUser(data) {
+      return (
+        data.size() >= 8 && data.size() <= 16 &&
+        'id' in data && 'userId' in data && 'name' in data && 'address' in data && 'phone' in data && 'package' in data && 'monthlyBill' in data && 'status' in data && 'createdAt' in data && 'updatedAt' in data &&
+        data.id is string && data.id.size() <= 128 &&
+        data.userId is string && (data.userId == request.auth.uid || isAdmin()) &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 150 &&
+        data.address is string && data.address.size() <= 500 &&
+        data.phone is string && data.phone.size() <= 50 &&
+        data.package is string && data.package.size() <= 150 &&
+        (data.monthlyBill is int || data.monthlyBill is float) && data.monthlyBill >= 0 &&
+        (data.status == 'active' || data.status == 'inactive') &&
+        (data.createdAt is timestamp || data.createdAt == request.time) &&
+        (data.updatedAt is timestamp || data.updatedAt == request.time)
+      );
+    }
+
+    // Schema Validation Helper for Vouchers
+    function isValidVoucher(data) {
+      return (
+        data.size() >= 10 && data.size() <= 20 &&
+        'id' in data && 'userId' in data && 'title' in data && 'amount' in data && 'category' in data && 'date' in data && 'submittedBy' in data && 'status' in data && 'createdAt' in data && 'updatedAt' in data &&
+        
+        (!('notes' in data) || (data.notes is string && data.notes.size() <= 1000)) &&
+        (!('rejectionReason' in data) || (data.rejectionReason is string && data.rejectionReason.size() <= 1000)) &&
+        (!('attachmentName' in data) || (data.attachmentName is string && data.attachmentName.size() <= 300)) &&
+        (!('attachmentData' in data) || data.attachmentData is string) &&
+        (!('transportLogs' in data) || (
+          data.transportLogs is list && 
+          data.transportLogs.size() <= 100
+        )) &&
+
+        data.id is string && data.id.size() <= 128 &&
+        data.userId is string && (data.userId == request.auth.uid || isAdmin()) &&
+        data.title is string && data.title.size() >= 1 && data.title.size() <= 150 &&
+        (data.amount is int || data.amount is float) && data.amount >= 0 &&
+        data.category is string && data.category.size() <= 100 &&
+        data.date is string && data.date.size() == 10 &&
+        data.submittedBy is string && data.submittedBy.size() <= 150 &&
+        (data.status == 'pending' || data.status == 'approved' || data.status == 'rejected') &&
+        (data.createdAt is timestamp || data.createdAt == request.time) &&
+        (data.updatedAt is timestamp || data.updatedAt == request.time)
+      );
+    }
+
+    // Schema Validation Helper for Daily Closing
+    function isValidDailyClosing(data) {
+      return (
+        data.size() >= 6 && data.size() <= 48 &&
+        'id' in data && 'userId' in data && 'date' in data &&
+        'status' in data && 'createdAt' in data && 'updatedAt' in data &&
+
+        (!('openingCash' in data) || (data.openingCash is int || data.openingCash is float)) &&
+        (!('openingBkash' in data) || (data.openingBkash is int || data.openingBkash is float)) &&
+        (!('openingNagad' in data) || (data.openingNagad is int || data.openingNagad is float)) &&
+        (!('openingRocket' in data) || (data.openingRocket is int || data.openingRocket is float)) &&
+        (!('openingBank' in data) || (data.openingBank is int || data.openingBank is float)) &&
+        (!('openingSsl' in data) || (data.openingSsl is int || data.openingSsl is float)) &&
+
+        (!('closingCash' in data) || (data.closingCash is int || data.closingCash is float)) &&
+        (!('closingBkash' in data) || (data.closingBkash is int || data.closingBkash is float)) &&
+        (!('closingNagad' in data) || (data.closingNagad is int || data.closingNagad is float)) &&
+        (!('closingRocket' in data) || (data.closingRocket is int || data.closingRocket is float)) &&
+        (!('closingBank' in data) || (data.closingBank is int || data.closingBank is float)) &&
+        (!('closingSsl' in data) || (data.closingSsl is int || data.closingSsl is float)) &&
+
+        (!('totalCashIn' in data) || (data.totalCashIn is int || data.totalCashIn is float)) &&
+        (!('totalBkashIn' in data) || (data.totalBkashIn is int || data.totalBkashIn is float)) &&
+        (!('totalNagadIn' in data) || (data.totalNagadIn is int || data.totalNagadIn is float)) &&
+        (!('totalRocketIn' in data) || (data.totalRocketIn is int || data.totalRocketIn is float)) &&
+        (!('totalBankIn' in data) || (data.totalBankIn is int || data.totalBankIn is float)) &&
+        (!('totalSslIn' in data) || (data.totalSslIn is int || data.totalSslIn is float)) &&
+
+        (!('totalCashOut' in data) || (data.totalCashOut is int || data.totalCashOut is float)) &&
+        (!('totalBkashOut' in data) || (data.totalBkashOut is int || data.totalBkashOut is float)) &&
+        (!('totalNagadOut' in data) || (data.totalNagadOut is int || data.totalNagadOut is float)) &&
+        (!('totalRocketOut' in data) || (data.totalRocketOut is int || data.totalRocketOut is float)) &&
+        (!('totalBankOut' in data) || (data.totalBankOut is int || data.totalBankOut is float)) &&
+        (!('totalSslOut' in data) || (data.totalSslOut is int || data.totalSslOut is float)) &&
+
+        (!('notes' in data) || (data.notes is string && data.notes.size() <= 1000)) &&
+        (!('closedBy' in data) || (data.closedBy is string && data.closedBy.size() <= 150)) &&
+        (!('isDrawerSubmitted' in data) || (data.isDrawerSubmitted is bool)) &&
+
+        (!('khaOfficeCash' in data) || (data.khaOfficeCash is int || data.khaOfficeCash is float)) &&
+        (!('dhakaOfficeCash' in data) || (data.dhakaOfficeCash is int || data.dhakaOfficeCash is float)) &&
+        (!('nayanCash' in data) || (data.nayanCash is int || data.nayanCash is float)) &&
+        (!('accountCash' in data) || (data.accountCash is int || data.accountCash is float)) &&
+
+        (!('transferKhaToNayan' in data) || (data.transferKhaToNayan is int || data.transferKhaToNayan is float)) &&
+        (!('transferNayanToDhaka' in data) || (data.transferNayanToDhaka is int || data.transferNayanToDhaka is float)) &&
+        (!('transferDhakaToNayan' in data) || (data.transferDhakaToNayan is int || data.transferDhakaToNayan is float)) &&
+        (!('transferDhakaToKha' in data) || (data.transferDhakaToKha is int || data.transferDhakaToKha is float)) &&
+
+        data.id is string && data.id.size() <= 128 &&
+        data.userId is string && (data.userId == request.auth.uid || isAdmin()) &&
+        data.date is string && data.date.size() == 10 &&
+        (data.status == 'open' || data.status == 'closed') &&
+        (data.createdAt is timestamp || data.createdAt == request.time) &&
+        (data.updatedAt is timestamp || data.updatedAt == request.time)
+      );
+    }
+
+    // Schema Validation Helper for Notifications
+    function isValidNotification(data) {
+      return (
+        data.size() >= 6 && data.size() <= 6 &&
+        'id' in data && 'userId' in data && 'type' in data && 'message' in data && 'read' in data && 'createdAt' in data &&
+        data.id is string && data.id.size() <= 128 &&
+        data.userId is string && data.userId == request.auth.uid &&
+        (data.type == 'new_transaction' || data.type == 'bill_payment' || data.type == 'budget_alert') &&
+        data.message is string && data.message.size() <= 500 &&
+        data.read is bool &&
+        (data.createdAt is timestamp || data.createdAt == request.time)
+      );
+    }
+
+    // Match patterns for app_users (System user management)
+    match /app_users/{appUserId} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create, update, delete: if isSignedIn();
+    }
+
+    // Match patterns for transactions
+    match /transactions/{transactionId} {
+      allow get: if isSignedIn() && (resource == null || resource.data.userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn();
+      
+      allow create: if isSignedIn() 
+        && isValidId(transactionId) 
+        && isValidTransaction(incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if isSignedIn()
+        && isValidId(transactionId)
+        && isValidTransaction(incoming())
+        && (incoming().userId == existing().userId || isAdmin())
+        && (!('createdAt' in existing()) || incoming().createdAt == existing().createdAt)
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'amount', 'category', 'date', 'notes', 'rejectionReason', 'paymentMethod', 'receivedBy', 'receivedDate', 'clientId', 'monthlyBill', 'billingMonth', 'collectorName', 'receiverName', 'status', 'isDailyClosing', 'updatedAt']);
+
+      allow delete: if isSignedIn() 
+        && isValidId(transactionId) 
+        && (resource == null || resource.data.userId == request.auth.uid || isAdmin());
+    }
+
+    // Match patterns for resellers (রিসেলার) - Owned and isolated by userId
+    match /resellers/{resellerId} {
+      allow get: if isSignedIn() && (resource == null || resource.data.userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn();
+      
+      allow create: if isSignedIn()
+        && isValidId(resellerId)
+        && isValidReseller(incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if isSignedIn()
+        && isValidId(resellerId)
+        && isValidReseller(incoming())
+        && (incoming().userId == existing().userId || isAdmin())
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'zone', 'bandwidth', 'monthlyBill', 'totalPaid', 'totalDue', 'unpaidMonths', 'phone', 'updatedAt']);
+
+      allow delete: if isSignedIn()
+        && isValidId(resellerId)
+        && (resource == null || resource.data.userId == request.auth.uid || isAdmin());
+    }
+
+    // Match patterns for home_users (হোম ইউজার) - Owned and isolated by userId
+    match /home_users/{homeUserId} {
+      allow get: if isSignedIn() && (resource == null || resource.data.userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn();
+
+      allow create: if isSignedIn()
+        && isValidId(homeUserId)
+        && isValidHomeUser(incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if isSignedIn()
+        && isValidId(homeUserId)
+        && isValidHomeUser(incoming())
+        && (incoming().userId == existing().userId || isAdmin())
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'address', 'phone', 'package', 'monthlyBill', 'status', 'updatedAt']);
+
+      allow delete: if isSignedIn()
+        && isValidId(homeUserId)
+        && (resource == null || resource.data.userId == request.auth.uid || isAdmin());
+    }
+
+    // Match patterns for vouchers (ভাউচার) - Owned and isolated by userId
+    match /vouchers/{voucherId} {
+      allow get: if isSignedIn() && (resource == null || resource.data.userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn();
+
+      allow create: if isSignedIn()
+        && isValidId(voucherId)
+        && isValidVoucher(incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if isSignedIn()
+        && isValidId(voucherId)
+        && isValidVoucher(incoming())
+        && (incoming().userId == existing().userId || isAdmin())
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'amount', 'category', 'date', 'submittedBy', 'status', 'notes', 'transportLogs', 'rejectionReason', 'attachmentName', 'attachmentData', 'updatedAt']);
+
+      allow delete: if isSignedIn()
+        && isValidId(voucherId)
+        && (resource == null || resource.data.userId == request.auth.uid || isAdmin());
+    }
+
+    // Match patterns for daily closings (ডেলি ক্লোজিং) - Owned and isolated by userId
+    match /daily_closings/{dailyClosingId} {
+      allow get: if isSignedIn() && (resource == null || resource.data.userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn();
+
+      allow create: if isSignedIn()
+        && isValidId(dailyClosingId)
+        && isValidDailyClosing(incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if isSignedIn()
+        && isValidId(dailyClosingId)
+        && isValidDailyClosing(incoming())
+        && (incoming().userId == existing().userId || isAdmin())
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['openingCash', 'openingBkash', 'openingNagad', 'openingRocket', 'openingBank', 'openingSsl', 'openingUpay', 'openingCellfin', 'openingTap', 'closingCash', 'closingBkash', 'closingNagad', 'closingRocket', 'closingBank', 'closingSsl', 'closingUpay', 'closingCellfin', 'closingTap', 'totalCashIn', 'totalBkashIn', 'totalNagadIn', 'totalRocketIn', 'totalBankIn', 'totalSslIn', 'totalUpayIn', 'totalCellfinIn', 'totalTapIn', 'totalCashOut', 'totalBkashOut', 'totalNagadOut', 'totalRocketOut', 'totalBankOut', 'totalSslOut', 'totalUpayOut', 'totalCellfinOut', 'totalTapOut', 'status', 'notes', 'closedBy', 'updatedAt', 'khaOfficeCash', 'dhakaOfficeCash', 'nayanCash', 'accountCash', 'transferKhaToNayan', 'transferNayanToDhaka', 'transferDhakaToNayan', 'transferDhakaToKha', 'isDrawerSubmitted']);
+
+      allow delete: if isSignedIn()
+        && isValidId(dailyClosingId)
+        && (resource == null || resource.data.userId == request.auth.uid || isAdmin());
+    }
+
+    // Match patterns for notifications
+    match /notifications/{notificationId} {
+      allow get: if isSignedIn() && (resource == null || resource.data.userId == request.auth.uid);
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      
+      allow create: if isSignedIn()
+        && isValidId(notificationId)
+        && isValidNotification(incoming());
+
+      allow update: if isSignedIn()
+        && isValidId(notificationId)
+        && isValidNotification(incoming())
+        && incoming().userId == existing().userId
+        && incoming().createdAt == existing().createdAt
+        && incoming().diff(existing()).affectedKeys().hasOnly(['read']);
+
+      allow delete: if isSignedIn()
+        && isValidId(notificationId)
+        && (resource == null || resource.data.userId == request.auth.uid);
+    }
+  }
+}
