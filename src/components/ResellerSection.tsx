@@ -321,8 +321,10 @@ export function ResellerSection({ userId, onAddTransaction, transactions, curren
   };
 
   const handleConfirmBulkUpload = async () => {
-    if (currentUserProfile && !currentUserProfile.permissions?.canManageSubscribers) {
-      alert('Access Denied: You do not have permission to manage subscriber accounts or billings.');
+    const isAdmin = !currentUserProfile || currentUserProfile.role === 'admin' || currentUserProfile.email?.toLowerCase() === 'connection.titascht@gmail.com';
+    const isExplicitlyDenied = !isAdmin && currentUserProfile.permissions?.canManageSubscribers === false && currentUserProfile.permissions?.canAddSubscriberBills === false;
+    if (isExplicitlyDenied) {
+      alert('Access Denied: You do not have permission to manage reseller accounts or billings.');
       return;
     }
     if (parsedTransactions.length === 0) return;
@@ -365,7 +367,7 @@ export function ResellerSection({ userId, onAddTransaction, transactions, curren
           billingMonth: item.billingMonth,
           collectorName: item.collector,
           receiverName: item.receiver,
-          status: 'manager_approved' // Set status directly to manager_approved
+          status: 'approved' // Set status directly to approved
         });
         
         successCount++;
@@ -386,8 +388,10 @@ export function ResellerSection({ userId, onAddTransaction, transactions, curren
     e.preventDefault();
     setManualBillError('');
 
-    if (currentUserProfile && !currentUserProfile.permissions?.canManageSubscribers) {
-      setManualBillError('Access Denied: You do not have permission to manage subscriber accounts or billings.');
+    const isAdmin = !currentUserProfile || currentUserProfile.role === 'admin' || currentUserProfile.email?.toLowerCase() === 'connection.titascht@gmail.com';
+    const isExplicitlyDenied = !isAdmin && currentUserProfile.permissions?.canManageSubscribers === false && currentUserProfile.permissions?.canAddSubscriberBills === false;
+    if (isExplicitlyDenied) {
+      setManualBillError('Access Denied: You do not have permission to add reseller bills.');
       return;
     }
 
@@ -400,10 +404,7 @@ export function ResellerSection({ userId, onAddTransaction, transactions, curren
       setManualBillError('Please enter valid Amount (must be greater than 0).');
       return;
     }
-    if (!manualResellerCode.trim()) {
-      setManualBillError('Please enter Reseller ID (Reseller Code).');
-      return;
-    }
+    const finalResellerCode = manualResellerCode.trim() || `R-${Math.floor(100000 + Math.random() * 900000)}`;
 
     try {
       const finalDate = manualBillDate || (() => {
@@ -414,7 +415,7 @@ export function ResellerSection({ userId, onAddTransaction, transactions, curren
         return `${yyyy}-${mm}-${dd}`;
       })();
 
-      let notesText = `Manual bill collection. Reseller Code: ${manualResellerCode.trim()}, Reseller Name: ${manualResellerName.trim()}`;
+      let notesText = `Manual bill collection. Reseller Code: ${finalResellerCode}, Reseller Name: ${manualResellerName.trim()}`;
       if (manualCollector.trim()) {
         notesText += `, Collector: ${manualCollector.trim()}`;
       }
@@ -432,12 +433,12 @@ export function ResellerSection({ userId, onAddTransaction, transactions, curren
         receivedBy: manualCollector.trim() || undefined,
         receivedDate: finalDate,
         notes: notesText,
-        clientId: manualResellerCode.trim(),
+        clientId: finalResellerCode,
         monthlyBill: amtNum,
         billingMonth: manualBillingMonth,
         collectorName: manualCollector.trim() || 'N/A',
         receiverName: manualReceiver.trim() || 'System Admin',
-        status: 'manager_approved' // Create as manager_approved
+        status: 'approved' // Create as approved
       });
 
       // Clear fields and close
@@ -474,7 +475,9 @@ export function ResellerSection({ userId, onAddTransaction, transactions, curren
     if (!editBillId) return;
     setEditBillError('');
 
-    if (currentUserProfile && !currentUserProfile.permissions?.canManageSubscribers) {
+    const isAdmin = !currentUserProfile || currentUserProfile.role === 'admin' || currentUserProfile.email?.toLowerCase() === 'connection.titascht@gmail.com';
+    const canManage = isAdmin || currentUserProfile?.permissions?.canManageSubscribers || currentUserProfile?.permissions?.canAddSubscriberBills;
+    if (!canManage) {
       setEditBillError('Access Denied: You do not have permission to manage subscriber accounts or billings.');
       return;
     }
@@ -530,7 +533,8 @@ export function ResellerSection({ userId, onAddTransaction, transactions, curren
   };
 
   const handleDeleteManualBillPayment = async (transactionId: string, rName: string) => {
-    if (currentUserProfile && !currentUserProfile.permissions?.canDeleteTransactions) {
+    const isAdmin = !currentUserProfile || currentUserProfile.role === 'admin' || currentUserProfile.email?.toLowerCase() === 'connection.titascht@gmail.com';
+    if (!isAdmin && currentUserProfile && !currentUserProfile.permissions?.canDeleteTransactions) {
       alert('Access Denied: You do not have permission to delete transaction records (bills).');
       return;
     }
@@ -763,7 +767,7 @@ export function ResellerSection({ userId, onAddTransaction, transactions, curren
       // Metadata card summary list
       const pdfTotalAmt = pdfBills.reduce((sum, t) => sum + t.amount, 0);
       const pdfApprovedAmt = pdfBills.filter(t => t.status === 'approved').reduce((sum, t) => sum + t.amount, 0);
-      const pdfPendingAmt = pdfBills.filter(t => t.status === 'pending').reduce((sum, t) => sum + t.amount, 0);
+      const pdfPendingAmt = pdfBills.filter(t => ['pending_supervisor', 'pending_manager', 'pending_accounts'].includes(t.status || '')).reduce((sum, t) => sum + t.amount, 0);
 
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(10);

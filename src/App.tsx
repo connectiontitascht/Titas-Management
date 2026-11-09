@@ -156,11 +156,56 @@ export default function App() {
             showDailyClosing: true,
           };
         }
+
+        const isSystemOwner = profile.email?.toLowerCase() === 'connection.titascht@gmail.com';
+        if (isSystemOwner || profile.role === 'admin') {
+          profile.role = 'admin';
+          profile.permissions = {
+            ...(profile.permissions || {}),
+            canDeleteTransactions: true,
+            canDeleteVouchers: true,
+            canApproveSupervisor: true,
+            canApproveManager: true,
+            canApproveAccounts: true,
+            canManageDailyClosing: true,
+            canManageSubscribers: true,
+            canAddSubscriberBills: true,
+          };
+        } else {
+          // Default canAddSubscriberBills to true if not explicitly set to false
+          if (!profile.permissions) {
+            profile.permissions = {
+              canDeleteTransactions: false,
+              canDeleteVouchers: false,
+              canApproveSupervisor: profile.role === 'supervisor',
+              canApproveManager: profile.role === 'manager',
+              canApproveAccounts: profile.role === 'accountant',
+              canManageDailyClosing: profile.role === 'accountant',
+              canManageSubscribers: true,
+              canAddSubscriberBills: true,
+            };
+          } else {
+            if (profile.permissions.canAddSubscriberBills === undefined) {
+              profile.permissions.canAddSubscriberBills = true;
+            }
+            if (profile.role === 'supervisor' && profile.permissions.canApproveSupervisor === undefined) {
+              profile.permissions.canApproveSupervisor = true;
+            }
+            if (profile.role === 'manager' && profile.permissions.canApproveManager === undefined) {
+              profile.permissions.canApproveManager = true;
+            }
+            if (profile.role === 'accountant' && profile.permissions.canApproveAccounts === undefined) {
+              profile.permissions.canApproveAccounts = true;
+            }
+          }
+        }
+
         console.log("Logged in user profile:", profile);
         setCurrentUserProfile(profile);
       } else {
-        // If this is a custom user, they must exist. Don't auto-seed default admin.
-        if (user.isCustom) {
+        // If this is a custom user, only skip if not the system owner
+        const isSystemOwner = user.email?.toLowerCase() === 'connection.titascht@gmail.com';
+        if (user.isCustom && !isSystemOwner) {
           return;
         }
 
@@ -176,7 +221,8 @@ export default function App() {
             canApproveManager: true,
             canApproveAccounts: true,
             canManageDailyClosing: true,
-            canManageSubscribers: true
+            canManageSubscribers: true,
+            canAddSubscriberBills: true,
           },
           createdBy: 'system',
           createdAt: new Date().toISOString()
@@ -537,79 +583,525 @@ export default function App() {
   });
 
   return (
-    <div className="grid grid-cols-[240px,1fr] h-screen bg-bg text-ink font-inter overflow-hidden antialiased">
-      {/* Nav Sidebar */}
-      <aside className="sidebar h-screen bg-surface border-r border-border flex flex-col py-6 gap-8">
-        <div className="logo-container pb-10 border-b border-border mb-8">
-            <div className="flex items-center gap-3 font-syne text-2xl text-accent">TA <span style={{fontSize: '0.7rem', fontFamily: 'JetBrains Mono', color: 'var(--ink-dim)'}}>v2.0</span></div>
-        </div>
-        <nav className="flex flex-col gap-2">
-            <button onClick={() => setActiveSection('dashboard')} className={`nav-item ${activeSection === 'dashboard' ? 'active' : ''}`}>
-                <LayoutDashboard className="w-5 h-5" /> DASHBOARD
+    <div className="flex h-screen bg-[#F1F5F9] font-sans text-slate-900 overflow-hidden relative">
+      {/* Sidebar background graphics */}
+      <div className="absolute top-0 left-[240px] w-[500px] h-[500px] blur-glow-emerald rounded-full pointer-events-none -z-10"></div>
+      <div className="absolute top-[30%] right-[5%] w-[500px] h-[500px] blur-glow-rose rounded-full pointer-events-none -z-10"></div>
+
+      {/* left Sidebar for desktop/laptop with smooth slide and collapse transition */}
+      <aside 
+        className={`bg-[#0F172A] text-white flex-col justify-between select-none border-r border-slate-800/20 shrink-0 hidden md:flex sticky top-0 h-screen transition-all duration-300 ease-in-out ${
+          desktopSidebarOpen ? 'w-64 p-6' : 'w-0 p-0 overflow-hidden border-r-0'
+        }`}
+      >
+        <div className="flex flex-col h-full justify-between">
+          <div>
+            <div className="flex items-center gap-3 mb-10 whitespace-nowrap">
+              <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center font-bold text-xl text-white shadow-md shrink-0">
+                TA
+              </div>
+              <div className="transition-opacity duration-200">
+                <h1 className="text-lg font-bold tracking-tight">Titas Accounting</h1>
+                <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Income-Expense Tracker</p>
+              </div>
+            </div>
+
+            <nav className="space-y-1.5">
+              {(currentUserProfile?.menuAccess?.showDashboard ?? true) && (
+                <button
+                  onClick={() => setActiveSection('dashboard')}
+                  className={`w-full p-3 rounded-lg flex items-center gap-3 text-sm font-semibold transition-all cursor-pointer whitespace-nowrap ${
+                    activeSection === 'dashboard'
+                      ? 'bg-indigo-600 text-white shadow-sm'
+                      : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'
+                  }`}
+                >
+                  <LayoutDashboard className="w-4.5 h-4.5 text-indigo-400 shrink-0" />
+                  <span>Dashboard Summary</span>
+                </button>
+              )}
+
+              {(currentUserProfile?.menuAccess?.showHistory ?? true) && (
+                <button
+                  onClick={() => setActiveSection('history')}
+                  className={`w-full p-3 rounded-lg flex items-center gap-3 text-sm font-semibold transition-all cursor-pointer whitespace-nowrap ${
+                    activeSection === 'history'
+                      ? 'bg-indigo-600 text-white shadow-sm'
+                      : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'
+                  }`}
+                >
+                  <Receipt className="w-4.5 h-4.5 text-rose-400 shrink-0" />
+                  <span>Transaction List</span>
+                </button>
+              )}
+
+              {(currentUserProfile?.menuAccess?.showHomeUser ?? true) && (
+                <button
+                  onClick={() => setActiveSection('home_user')}
+                  className={`w-full p-3 rounded-lg flex items-center gap-3 text-sm font-semibold transition-all cursor-pointer whitespace-nowrap ${
+                    activeSection === 'home_user'
+                      ? 'bg-indigo-600 text-white shadow-sm'
+                      : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'
+                  }`}
+                >
+                  <Users className="w-4.5 h-4.5 text-yellow-400 shrink-0" />
+                  <span>Home User</span>
+                </button>
+              )}
+
+              {(currentUserProfile?.menuAccess?.showReseller ?? true) && (
+                <button
+                  onClick={() => setActiveSection('reseller')}
+                  className={`w-full p-3 rounded-lg flex items-center gap-3 text-sm font-semibold transition-all cursor-pointer whitespace-nowrap ${
+                    activeSection === 'reseller'
+                      ? 'bg-indigo-600 text-white shadow-sm'
+                      : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'
+                  }`}
+                >
+                  <Users className="w-4.5 h-4.5 text-cyan-400 shrink-0" />
+                  <span>Reseller</span>
+                </button>
+              )}
+
+              {(currentUserProfile?.menuAccess?.showVoucher ?? true) && (
+                <button
+                  onClick={() => setActiveSection('voucher')}
+                  className={`w-full p-3 rounded-lg flex items-center gap-3 text-sm font-semibold transition-all cursor-pointer whitespace-nowrap ${
+                    activeSection === 'voucher'
+                      ? 'bg-indigo-600 text-white shadow-sm'
+                      : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'
+                  }`}
+                >
+                  <FileText className="w-4.5 h-4.5 text-rose-400 shrink-0" />
+                  <span>Voucher</span>
+                </button>
+              )}
+
+              {(currentUserProfile?.menuAccess?.showDailyClosing ?? true) && (
+                <button
+                  onClick={() => setActiveSection('daily_closing')}
+                  className={`w-full p-3 rounded-lg flex items-center gap-3 text-sm font-semibold transition-all cursor-pointer whitespace-nowrap ${
+                    activeSection === 'daily_closing'
+                      ? 'bg-indigo-600 text-white shadow-sm'
+                      : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'
+                  }`}
+                >
+                  <Calculator className="w-4.5 h-4.5 text-emerald-400 shrink-0" />
+                  <span>Daily Closing</span>
+                </button>
+              )}
+
+              {/* System Dropdown (Admin Only) */}
+              {(!currentUserProfile || currentUserProfile.role === 'admin') && (
+                <div className="space-y-1 pt-1.5 border-t border-slate-800/40">
+                  <button
+                    onClick={() => setSystemMenuOpen(!systemMenuOpen)}
+                    className="w-full p-3 rounded-lg flex items-center justify-between text-sm font-semibold text-slate-400 hover:bg-slate-800 hover:text-slate-100 transition-all cursor-pointer"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Settings className="w-4.5 h-4.5 text-indigo-400 shrink-0" />
+                      <span>System</span>
+                    </div>
+                    <ChevronDown className={`w-3.5 h-3.5 text-slate-500 transition-transform duration-200 ${systemMenuOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                  
+                  {systemMenuOpen && (
+                    <div className="pl-6 space-y-1">
+                      <button
+                        onClick={() => setActiveSection('system_users')}
+                        className={`w-full p-2.5 rounded-lg flex items-center gap-2.5 text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                          activeSection === 'system_users'
+                            ? 'bg-indigo-600 text-white shadow-sm'
+                            : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-100'
+                        }`}
+                      >
+                        <Users className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                        <span>App User</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </nav>
+          </div>
+
+          {/* Profiler user tag at bottom */}
+          <div className="mt-auto pt-4 border-t border-slate-800 flex flex-col gap-3 whitespace-nowrap">
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">Logged In:</span>
+              <span className="text-xs text-slate-300 font-mono truncate">{user.email || ''}</span>
+            </div>
+            <button
+              onClick={safeSignOut}
+              className="w-full text-slate-400 hover:text-white hover:bg-slate-800 p-2.5 rounded-lg flex items-center justify-center gap-2 text-xs font-semibold transition cursor-pointer border border-slate-800 mt-2"
+            >
+              <LogOut className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+              <span>Sign Out</span>
             </button>
-            <button onClick={() => setActiveSection('history')} className={`nav-item ${activeSection === 'history' ? 'active' : ''}`}>
-                <Receipt className="w-5 h-5" /> TRANSACTIONS
-            </button>
-            <button onClick={() => setActiveSection('home_user')} className={`nav-item ${activeSection === 'home_user' ? 'active' : ''}`}>
-                <Users className="w-5 h-5" /> CUSTOMERS
-            </button>
-            <button onClick={() => setActiveSection('reseller')} className={`nav-item ${activeSection === 'reseller' ? 'active' : ''}`}>
-                <Users className="w-5 h-5" /> RESELLERS
-            </button>
-            <button onClick={() => setActiveSection('daily_closing')} className={`nav-item ${activeSection === 'daily_closing' ? 'active' : ''}`}>
-                <Calculator className="w-5 h-5" /> CALCULATOR
-            </button>
-        </nav>
-        <div className="mt-auto">
-            <button onClick={safeSignOut} className="nav-item text-[#ff4d4d] hover:bg-rose-900/10 transition">
-                <LogOut className="w-5 h-5" /> EXIT SYSTEM
-            </button>
+          </div>
         </div>
       </aside>
 
-      {/* Main Workspace */}
-      <div className="grid grid-rows-[80px,1fr,auto] h-screen overflow-hidden" style={{backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.02) 1px, transparent 1px)', backgroundSize: '32px 32px'}}>
+      {/* Main Container Right column */}
+      <main className="flex-1 flex flex-col h-screen overflow-y-auto overflow-x-hidden">
         {/* Dynamic header row matching high density aesthetic */}
-        <header className="border-b border-border flex items-center justify-between px-10 bg-[rgba(17,17,19,0.8)] backdrop-blur-xl">
-          <div>
-            <div className="text-[0.65rem] font-mono uppercase tracking-[0.15em] text-accent mb-1">System Node: Local</div>
-            <h2 className="font-syne text-2xl tracking-tight">
-            {activeSection === 'dashboard' && 'DASHBOARD OVERVIEW'}
-            {activeSection === 'history' && 'TRANSACTION HISTORY'}
-            {activeSection === 'home_user' && 'CUSTOMER PORTAL'}
-            {activeSection === 'reseller' && 'RESELLER PORTAL'}
-            {activeSection === 'daily_closing' && 'CALCULATOR ENGINE'}
-            {activeSection === 'system_users' && 'SYSTEM USERS'}
-          </h2>
+        <header className="h-16 bg-white/95 backdrop-blur-sm border-b border-slate-200 px-6 flex items-center justify-between sticky top-0 z-30 select-none">
+          <div className="flex items-center gap-4">
+            {/* Hamburger/Slidebar toggle for desktop & mobile */}
+            <button 
+              onClick={() => {
+                if (window.innerWidth < 768) {
+                  setMobileMenuOpen(true);
+                } else {
+                  setDesktopSidebarOpen(!desktopSidebarOpen);
+                }
+              }}
+              className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-600 cursor-pointer flex items-center justify-center transition-colors"
+              title="Toggle Sidebar"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+
+            {/* Brand Logo & Name (visible on desktop/laptop when sidebar is collapsed) */}
+            {!desktopSidebarOpen && (
+              <div className="hidden md:flex items-center gap-2.5 mr-4 animate-fade-in">
+                <div className="w-9 h-9 bg-indigo-600 rounded-lg flex items-center justify-center font-bold text-base text-white shadow-md">
+                  TA
+                </div>
+                <div>
+                  <h1 className="text-sm font-bold text-slate-800 tracking-tight leading-tight">Titas Accounting</h1>
+                  <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider leading-none">Income-Expense Tracker</p>
+                </div>
+              </div>
+            )}
+
+            {/* Menu Options Dropdown for Laptop/Desktop View */}
+            <div className="hidden md:block relative">
+              <button
+                onClick={() => setDropdownOpen(!dropdownOpen)}
+                className="flex items-center gap-2.5 px-3.5 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 transition cursor-pointer select-none"
+              >
+                {activeSection === 'dashboard' && (
+                  <>
+                    <LayoutDashboard className="w-4 h-4 text-indigo-500 animate-pulse" />
+                    <span>Dashboard Summary</span>
+                  </>
+                )}
+                {activeSection === 'history' && (
+                  <>
+                    <Receipt className="w-4 h-4 text-rose-500" />
+                    <span>Transaction List</span>
+                  </>
+                )}
+                {activeSection === 'home_user' && (
+                  <>
+                    <Users className="w-4 h-4 text-yellow-500" />
+                    <span>Home User</span>
+                  </>
+                )}
+                {activeSection === 'reseller' && (
+                  <>
+                    <Users className="w-4 h-4 text-cyan-500" />
+                    <span>Reseller</span>
+                  </>
+                )}
+                {activeSection === 'voucher' && (
+                  <>
+                    <FileText className="w-4 h-4 text-rose-500" />
+                    <span>Voucher</span>
+                  </>
+                )}
+                {activeSection === 'daily_closing' && (
+                  <>
+                    <Calculator className="w-4 h-4 text-emerald-500" />
+                    <span>Daily Closing</span>
+                  </>
+                )}
+                {activeSection === 'system_users' && (
+                  <>
+                    <Settings className="w-4 h-4 text-indigo-500" />
+                    <span>App User Control</span>
+                  </>
+                )}
+                <ChevronDown className="w-3.5 h-3.5 text-slate-400 ml-1" />
+              </button>
+
+              {/* Dropdown Options list */}
+              {dropdownOpen && (
+                <>
+                  <div className="fixed inset-0 z-30" onClick={() => setDropdownOpen(false)}></div>
+                  <div className="absolute left-0 mt-2 w-56 bg-white border border-slate-200 rounded-2xl shadow-xl py-1.5 z-40 animate-fade-in animate-scale-up">
+                    {(currentUserProfile?.menuAccess?.showDashboard ?? true) && (
+                      <button
+                        onClick={() => { setActiveSection('dashboard'); setDropdownOpen(false); }}
+                        className={`w-full px-4 py-2.5 text-left text-xs font-bold flex items-center gap-3 hover:bg-slate-50 transition cursor-pointer ${
+                          activeSection === 'dashboard' ? 'text-indigo-600 bg-indigo-50/50' : 'text-slate-600'
+                        }`}
+                      >
+                        <LayoutDashboard className="w-4 h-4 text-indigo-500" />
+                        <span>Dashboard Summary</span>
+                      </button>
+                    )}
+                    {(currentUserProfile?.menuAccess?.showHistory ?? true) && (
+                      <button
+                        onClick={() => { setActiveSection('history'); setDropdownOpen(false); }}
+                        className={`w-full px-4 py-2.5 text-left text-xs font-bold flex items-center gap-3 hover:bg-slate-50 transition cursor-pointer ${
+                          activeSection === 'history' ? 'text-indigo-600 bg-indigo-50/50' : 'text-slate-600'
+                        }`}
+                      >
+                        <Receipt className="w-4 h-4 text-rose-500" />
+                        <span>Transaction List</span>
+                      </button>
+                    )}
+                    {(currentUserProfile?.menuAccess?.showHomeUser ?? true) && (
+                      <button
+                        onClick={() => { setActiveSection('home_user'); setDropdownOpen(false); }}
+                        className={`w-full px-4 py-2.5 text-left text-xs font-bold flex items-center gap-3 hover:bg-slate-50 transition cursor-pointer ${
+                          activeSection === 'home_user' ? 'text-indigo-600 bg-indigo-50/50' : 'text-slate-600'
+                        }`}
+                      >
+                        <Users className="w-4 h-4 text-yellow-500" />
+                        <span>Home User</span>
+                      </button>
+                    )}
+                    {(currentUserProfile?.menuAccess?.showReseller ?? true) && (
+                      <button
+                        onClick={() => { setActiveSection('reseller'); setDropdownOpen(false); }}
+                        className={`w-full px-4 py-2.5 text-left text-xs font-bold flex items-center gap-3 hover:bg-slate-50 transition cursor-pointer ${
+                          activeSection === 'reseller' ? 'text-indigo-600 bg-indigo-50/50' : 'text-slate-600'
+                        }`}
+                      >
+                        <Users className="w-4 h-4 text-cyan-500" />
+                        <span>Reseller</span>
+                      </button>
+                    )}
+                    {(currentUserProfile?.menuAccess?.showVoucher ?? true) && (
+                      <button
+                        onClick={() => { setActiveSection('voucher'); setDropdownOpen(false); }}
+                        className={`w-full px-4 py-2.5 text-left text-xs font-bold flex items-center gap-3 hover:bg-slate-50 transition cursor-pointer ${
+                          activeSection === 'voucher' ? 'text-indigo-600 bg-indigo-50/50' : 'text-slate-600'
+                        }`}
+                      >
+                        <FileText className="w-4 h-4 text-rose-500" />
+                        <span>Voucher</span>
+                      </button>
+                    )}
+                    {(currentUserProfile?.menuAccess?.showDailyClosing ?? true) && (
+                      <button
+                        onClick={() => { setActiveSection('daily_closing'); setDropdownOpen(false); }}
+                        className={`w-full px-4 py-2.5 text-left text-xs font-bold flex items-center gap-3 hover:bg-slate-50 transition cursor-pointer ${
+                          activeSection === 'daily_closing' ? 'text-indigo-600 bg-indigo-50/50' : 'text-slate-600'
+                        }`}
+                      >
+                        <Calculator className="w-4 h-4 text-emerald-500" />
+                        <span>Daily Closing</span>
+                      </button>
+                    )}
+                    {(!currentUserProfile || currentUserProfile.role === 'admin') && (
+                      <button
+                        onClick={() => { setActiveSection('system_users'); setDropdownOpen(false); }}
+                        className={`w-full px-4 py-2.5 text-left text-xs font-bold flex items-center gap-3 hover:bg-slate-50 transition cursor-pointer ${
+                          activeSection === 'system_users' ? 'text-indigo-600 bg-indigo-50/50' : 'text-slate-600'
+                        }`}
+                      >
+                        <Users className="w-4 h-4 text-indigo-500" />
+                        <span>App User</span>
+                      </button>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Mobile View Title */}
+            <h2 className="text-base font-bold text-slate-800 md:hidden">
+              {activeSection === 'dashboard' && 'Dashboard Summary'}
+              {activeSection === 'history' && 'Transaction List'}
+              {activeSection === 'home_user' && 'Home User'}
+              {activeSection === 'reseller' && 'Reseller'}
+              {activeSection === 'voucher' && 'Voucher'}
+              {activeSection === 'daily_closing' && 'Daily Closing'}
+              {activeSection === 'system_users' && 'App User Control'}
+            </h2>
+
+            <span className="text-xs bg-slate-100 text-slate-500 px-2 py-1 rounded font-semibold hidden lg:inline-block">
+              {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+            </span>
           </div>
-          <input type="date" defaultValue={new Date().toISOString().split('T')[0]} className="bg-surface border border-border text-ink font-mono p-2 text-xs rounded" />
+
+          <div className="flex items-center gap-3">
+            <NotificationBell />
+            {/* Desktop User profile details & Sign Out */}
+            <div className="hidden md:flex items-center gap-3 pr-1">
+              <div className="flex flex-col text-right">
+                <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider leading-none">Logged In</span>
+                <span className="text-xs text-slate-600 font-mono font-medium max-w-[150px] truncate">{user.email || ''}</span>
+              </div>
+              <button
+                onClick={safeSignOut}
+                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition cursor-pointer border border-slate-200 flex items-center justify-center"
+                title="Sign Out"
+              >
+                <LogOut className="w-3.5 h-3.5 text-rose-400" />
+              </button>
+            </div>
+          </div>
         </header>
 
-        {/* Content canvas with perfect margins and grids */}
-        <main className="overflow-y-auto p-10 space-y-6">
-          {/* Universal high level stats counters */}
-          {activeSection === 'dashboard' && (
-            <BudgetSummary 
-              transactions={approvedOrStandardTransactions} 
-              resellers={resellers} 
-              allTransactions={transactions} 
-            />
-          )}
+        {/* Mobile Sidebar overlay */}
+        {mobileMenuOpen && (
+          <div 
+            className="md:hidden fixed inset-0 bg-slate-900/60 z-50 flex" 
+            onClick={() => setMobileMenuOpen(false)}
+          >
+            <div 
+              className="w-64 bg-[#0F172A] text-white p-6 flex flex-col justify-between h-full" 
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div>
+                <div className="flex items-center justify-between mb-8">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center font-bold text-white">TA</div>
+                    <span className="font-bold">Titas Accounting</span>
+                  </div>
+                  <button onClick={() => setMobileMenuOpen(false)} className="text-slate-400 hover:text-white">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
 
+                <nav className="space-y-2">
+                  {(currentUserProfile?.menuAccess?.showDashboard ?? true) && (
+                    <button
+                      onClick={() => { setActiveSection('dashboard'); setMobileMenuOpen(false); }}
+                      className={`w-full p-3 rounded-lg flex items-center gap-3 text-sm font-semibold transition-all ${
+                        activeSection === 'dashboard' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:bg-slate-800'
+                      }`}
+                    >
+                      <LayoutDashboard className="w-4 h-4" />
+                      <span>Dashboard Summary</span>
+                    </button>
+                  )}
+                  {(currentUserProfile?.menuAccess?.showHistory ?? true) && (
+                    <button
+                      onClick={() => { setActiveSection('history'); setMobileMenuOpen(false); }}
+                      className={`w-full p-3 rounded-lg flex items-center gap-3 text-sm font-semibold transition-all ${
+                        activeSection === 'history' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:bg-slate-800'
+                      }`}
+                    >
+                      <Receipt className="w-4 h-4" />
+                      <span>Transaction List</span>
+                    </button>
+                  )}
+                  {(currentUserProfile?.menuAccess?.showHomeUser ?? true) && (
+                    <button
+                      onClick={() => { setActiveSection('home_user'); setMobileMenuOpen(false); }}
+                      className={`w-full p-3 rounded-lg flex items-center gap-3 text-sm font-semibold transition-all ${
+                        activeSection === 'home_user' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:bg-slate-800'
+                      }`}
+                    >
+                      <Users className="w-4 h-4 text-yellow-400" />
+                      <span>Home User</span>
+                    </button>
+                  )}
+                  {(currentUserProfile?.menuAccess?.showReseller ?? true) && (
+                    <button
+                      onClick={() => { setActiveSection('reseller'); setMobileMenuOpen(false); }}
+                      className={`w-full p-3 rounded-lg flex items-center gap-3 text-sm font-semibold transition-all ${
+                        activeSection === 'reseller' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:bg-slate-800'
+                      }`}
+                    >
+                      <Users className="w-4 h-4 text-cyan-400" />
+                      <span>Reseller</span>
+                    </button>
+                  )}
+                  {(currentUserProfile?.menuAccess?.showVoucher ?? true) && (
+                    <button
+                      onClick={() => { setActiveSection('voucher'); setMobileMenuOpen(false); }}
+                      className={`w-full p-3 rounded-lg flex items-center gap-3 text-sm font-semibold transition-all ${
+                        activeSection === 'voucher' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:bg-slate-800'
+                      }`}
+                    >
+                      <FileText className="w-4 h-4 text-rose-400" />
+                      <span>Voucher</span>
+                    </button>
+                  )}
+                  {(currentUserProfile?.menuAccess?.showDailyClosing ?? true) && (
+                    <button
+                      onClick={() => { setActiveSection('daily_closing'); setMobileMenuOpen(false); }}
+                      className={`w-full p-3 rounded-lg flex items-center gap-3 text-sm font-semibold transition-all ${
+                        activeSection === 'daily_closing' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:bg-slate-800'
+                      }`}
+                    >
+                      <Calculator className="w-4 h-4 text-emerald-400" />
+                      <span>Daily Closing</span>
+                    </button>
+                  )}
+
+                  {/* System Dropdown (Admin Only) */}
+                  {(!currentUserProfile || currentUserProfile.role === 'admin') && (
+                    <div className="space-y-1 pt-1 border-t border-slate-800/40">
+                      <button
+                        onClick={() => setSystemMenuOpen(!systemMenuOpen)}
+                        className="w-full p-3 rounded-lg flex items-center justify-between text-sm font-semibold text-slate-400 hover:bg-slate-800 hover:text-slate-100 transition-all cursor-pointer"
+                      >
+                        <div className="flex items-center gap-3">
+                          <Settings className="w-4 h-4 text-indigo-400 shrink-0" />
+                          <span>System</span>
+                        </div>
+                        <ChevronDown className={`w-3.5 h-3.5 text-slate-500 transition-transform duration-200 ${systemMenuOpen ? 'rotate-180' : ''}`} />
+                      </button>
+                      
+                      {systemMenuOpen && (
+                        <div className="pl-6 space-y-1">
+                          <button
+                            onClick={() => { setActiveSection('system_users'); setMobileMenuOpen(false); }}
+                            className={`w-full p-2.5 rounded-lg flex items-center gap-2.5 text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                              activeSection === 'system_users'
+                                ? 'bg-indigo-600 text-white shadow-sm'
+                                : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-100'
+                            }`}
+                          >
+                            <Users className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                            <span>App User</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </nav>
+              </div>
+              <button
+                onClick={safeSignOut}
+                className="w-full text-slate-400 hover:text-white hover:bg-slate-800 p-3 rounded-lg flex items-center gap-3 text-sm font-semibold transition cursor-pointer"
+              >
+                <LogOut className="w-4 h-4" />
+                <span>Sign Out</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Content canvas with perfect margins and grids */}
+        <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-6">
           {/* Section 1: Dashboard overview */}
           {activeSection === 'dashboard' && (
-            <div className="w-full space-y-6">
+            <div className="w-full space-y-6 animate-fade-in">
+              <BudgetSummary 
+                transactions={approvedOrStandardTransactions} 
+                resellers={resellers} 
+                allTransactions={transactions} 
+              />
               {/* Graphs & Breakdowns */}
-              <GraphicalReports transactions={approvedOrStandardTransactions} />
-              
-              {/* Payment Method Grid Breakdown */}
-              <PaymentMethodBreakdown transactions={approvedOrStandardTransactions} />
+              <div className="space-y-6">
+                <GraphicalReports transactions={approvedOrStandardTransactions} />
+                <PaymentMethodBreakdown transactions={approvedOrStandardTransactions} />
+              </div>
             </div>
           )}
 
           {/* Section 2: Unified list table views with floating entry point */}
           {activeSection === 'history' && (
-            <div className="w-full animate-fade-in panel">
+            <div className="w-full animate-fade-in">
               <TransactionList 
                 transactions={approvedOrStandardTransactions} 
                 onDeleteTransaction={handleDeleteTransaction} 
@@ -620,48 +1112,35 @@ export default function App() {
 
           {/* Section 5: Home user subscriber list portal */}
           {activeSection === 'home_user' && (
-            <div className="panel">
-                <HomeUserSection userId={user.uid} onAddTransaction={handleAddTransaction} transactions={transactions} currentUserProfile={currentUserProfile} />
-            </div>
+            <HomeUserSection userId={user.uid} onAddTransaction={handleAddTransaction} transactions={transactions} currentUserProfile={currentUserProfile} />
           )}
 
           {/* Section 5 Duplicate: Reseller subscriber list portal */}
           {activeSection === 'reseller' && (
-            <div className="panel">
-                <ResellerSection userId={user.uid} onAddTransaction={handleAddTransaction} transactions={transactions} currentUserProfile={currentUserProfile} />
-            </div>
+            <ResellerSection userId={user.uid} onAddTransaction={handleAddTransaction} transactions={transactions} currentUserProfile={currentUserProfile} />
           )}
 
           {/* Section 6: Voucher expense requests list and workflow */}
           {activeSection === 'voucher' && (
-            <div className="panel">
-                <VoucherSection userId={user.uid} onAddTransaction={handleAddTransaction} currentUserProfile={currentUserProfile} />
-            </div>
+            <VoucherSection userId={user.uid} onAddTransaction={handleAddTransaction} currentUserProfile={currentUserProfile} />
           )}
 
           {/* Section 7: Daily closing audit and locked states */}
           {activeSection === 'daily_closing' && (
-            <div className="panel">
-                <DailyClosingSection userId={user.uid} transactions={transactions} currentUserProfile={currentUserProfile} />
-            </div>
+            <DailyClosingSection userId={user.uid} transactions={transactions} currentUserProfile={currentUserProfile} />
           )}
 
           {/* Section 8: System Users & RBAC Administrative dashboard */}
           {activeSection === 'system_users' && (
-            <div className="panel">
-                <SystemUsersSection currentUserId={user.uid} />
-            </div>
+            <SystemUsersSection currentUserId={user.uid} />
           )}
-        </main>
+        </div>
 
         {/* Humid and clean editorial footer */}
-        <footer className="px-10 py-5 font-mono text-[0.6rem] text-ink-dim uppercase tracking-[0.1em] border-t border-border">
-          <div className="flex justify-between">
-            <span>© 2026 Titas Accounting Software</span>
-            <span>Security Level: High | Mode: Offline-Ready</span>
-          </div>
+        <footer className="px-8 py-4 text-center text-slate-400 text-xs border-t border-slate-200/50 bg-white">
+          <p className="font-sans">© 2026 Titas Accounting Software | Secure, Offline-Ready Local Data Inventory.</p>
         </footer>
-      </div>
+      </main>
     </div>
   );
 }

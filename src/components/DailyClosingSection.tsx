@@ -192,12 +192,12 @@ export function DailyClosingSection({ userId, transactions, currentUserProfile }
         if (prevDocSnap.exists()) {
           const prevData = prevDocSnap.data() as DailyClosing;
           // Pre-populate today's opening balance with yesterday's closing balance
-          setOpeningCash(prevData.closingCash.toString());
-          setOpeningBkash(prevData.closingBkash.toString());
-          setOpeningNagad(prevData.closingNagad.toString());
-          setOpeningRocket(prevData.closingRocket.toString());
-          setOpeningBank(prevData.closingBank.toString());
-          setOpeningSsl(prevData.closingSsl.toString());
+          setOpeningCash((prevData.closingCash ?? 0).toString());
+          setOpeningBkash((prevData.closingBkash ?? 0).toString());
+          setOpeningNagad((prevData.closingNagad ?? 0).toString());
+          setOpeningRocket((prevData.closingRocket ?? 0).toString());
+          setOpeningBank((prevData.closingBank ?? 0).toString());
+          setOpeningSsl((prevData.closingSsl ?? 0).toString());
           setSuccess(`Opening balance has been loaded from the previous day's (${prevDateString}) closing balance.`);
           setTimeout(() => setSuccess(''), 5000);
         } else {

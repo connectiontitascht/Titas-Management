@@ -13,7 +13,11 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isSignedIn() && get(/databases/$(database)/documents/app_users/$(request.auth.uid)).data.role == 'admin';
+      return isSignedIn() && (
+        (request.auth.token.email != null && request.auth.token.email == 'connection.titascht@gmail.com') ||
+        (exists(/databases/$(database)/documents/app_users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/app_users/$(request.auth.uid)).data.role == 'admin')
+      );
     }
 
     function isOwner(userId) {
@@ -36,7 +40,7 @@ service cloud.firestore {
     function isValidTransaction(data) {
       return (
         // Key count and required existence checks
-        data.size() >= 7 && data.size() <= 21 &&
+        data.size() >= 7 && data.size() <= 40 &&
         'id' in data &&
         'type' in data &&
         'title' in data &&
@@ -56,7 +60,19 @@ service cloud.firestore {
         (!('billingMonth' in data) || (data.billingMonth is string && data.billingMonth.size() <= 50)) &&
         (!('collectorName' in data) || (data.collectorName is string && data.collectorName.size() <= 150)) &&
         (!('receiverName' in data) || (data.receiverName is string && data.receiverName.size() <= 150)) &&
-        (!('status' in data) || (data.status is string && (data.status == 'pending' || data.status == 'approved' || data.status == 'rejected'))) &&
+        (!('status' in data) || (data.status is string && (data.status == 'pending' || data.status == 'pending_supervisor' || data.status == 'pending_manager' || data.status == 'pending_accounts' || data.status == 'approved' || data.status == 'rejected'))) &&
+        (!('supervisorApprovedBy' in data) || (data.supervisorApprovedBy is string && data.supervisorApprovedBy.size() <= 150)) &&
+        (!('managerApprovedBy' in data) || (data.managerApprovedBy is string && data.managerApprovedBy.size() <= 150)) &&
+        (!('accountsApprovedBy' in data) || (data.accountsApprovedBy is string && data.accountsApprovedBy.size() <= 150)) &&
+        (!('supervisorDesignation' in data) || (data.supervisorDesignation is string && data.supervisorDesignation.size() <= 150)) &&
+        (!('managerDesignation' in data) || (data.managerDesignation is string && data.managerDesignation.size() <= 150)) &&
+        (!('accountsDesignation' in data) || (data.accountsDesignation is string && data.accountsDesignation.size() <= 150)) &&
+        (!('supervisorApprovedAt' in data) || (data.supervisorApprovedAt is string && data.supervisorApprovedAt.size() <= 50)) &&
+        (!('managerApprovedAt' in data) || (data.managerApprovedAt is string && data.managerApprovedAt.size() <= 50)) &&
+        (!('accountsApprovedAt' in data) || (data.accountsApprovedAt is string && data.accountsApprovedAt.size() <= 50)) &&
+        (!('supervisorComment' in data) || (data.supervisorComment is string && data.supervisorComment.size() <= 1000)) &&
+        (!('managerComment' in data) || (data.managerComment is string && data.managerComment.size() <= 1000)) &&
+        (!('accountsComment' in data) || (data.accountsComment is string && data.accountsComment.size() <= 1000)) &&
         (!('isDailyClosing' in data) || (data.isDailyClosing is bool)) &&
         (!('createdAt' in data) || (data.createdAt is timestamp || data.createdAt == request.time)) &&
         (!('updatedAt' in data) || (data.updatedAt is timestamp || data.updatedAt == request.time)) &&
@@ -234,11 +250,10 @@ service cloud.firestore {
         && (incoming().userId == existing().userId || isAdmin())
         && (!('createdAt' in existing()) || incoming().createdAt == existing().createdAt)
         && incoming().updatedAt == request.time
-        && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'amount', 'category', 'date', 'notes', 'rejectionReason', 'paymentMethod', 'receivedBy', 'receivedDate', 'clientId', 'monthlyBill', 'billingMonth', 'collectorName', 'receiverName', 'status', 'isDailyClosing', 'updatedAt']);
+        && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'amount', 'category', 'date', 'notes', 'rejectionReason', 'paymentMethod', 'receivedBy', 'receivedDate', 'clientId', 'monthlyBill', 'billingMonth', 'collectorName', 'receiverName', 'status', 'isDailyClosing', 'updatedAt', 'supervisorApprovedBy', 'managerApprovedBy', 'accountsApprovedBy', 'supervisorDesignation', 'managerDesignation', 'accountsDesignation', 'supervisorApprovedAt', 'managerApprovedAt', 'accountsApprovedAt', 'supervisorComment', 'managerComment', 'accountsComment']);
 
       allow delete: if isSignedIn() 
-        && isValidId(transactionId) 
-        && (resource == null || resource.data.userId == request.auth.uid || isAdmin());
+        && isValidId(transactionId);
     }
 
     // Match patterns for resellers (রিসেলার) - Owned and isolated by userId

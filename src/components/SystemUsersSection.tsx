@@ -17,7 +17,9 @@ import {
   AlertTriangle,
   Info,
   ShieldAlert,
-  UserCheck
+  UserCheck,
+  X,
+  AlertCircle
 } from 'lucide-react';
 import { 
   collection, 
@@ -48,7 +50,8 @@ const DEFAULT_PERMISSIONS: Record<UserRole, AppUser['permissions']> = {
     canApproveManager: true,
     canApproveAccounts: true,
     canManageDailyClosing: true,
-    canManageSubscribers: true
+    canManageSubscribers: true,
+    canAddSubscriberBills: true
   },
   supervisor: {
     canDeleteTransactions: false,
@@ -57,7 +60,8 @@ const DEFAULT_PERMISSIONS: Record<UserRole, AppUser['permissions']> = {
     canApproveManager: false,
     canApproveAccounts: false,
     canManageDailyClosing: false,
-    canManageSubscribers: false
+    canManageSubscribers: true,
+    canAddSubscriberBills: true
   },
   manager: {
     canDeleteTransactions: false,
@@ -66,7 +70,8 @@ const DEFAULT_PERMISSIONS: Record<UserRole, AppUser['permissions']> = {
     canApproveManager: true,
     canApproveAccounts: false,
     canManageDailyClosing: false,
-    canManageSubscribers: false
+    canManageSubscribers: true,
+    canAddSubscriberBills: true
   },
   accountant: {
     canDeleteTransactions: false,
@@ -75,7 +80,8 @@ const DEFAULT_PERMISSIONS: Record<UserRole, AppUser['permissions']> = {
     canApproveManager: false,
     canApproveAccounts: true,
     canManageDailyClosing: true,
-    canManageSubscribers: true
+    canManageSubscribers: true,
+    canAddSubscriberBills: true
   },
   operator: {
     canDeleteTransactions: false,
@@ -84,7 +90,8 @@ const DEFAULT_PERMISSIONS: Record<UserRole, AppUser['permissions']> = {
     canApproveManager: false,
     canApproveAccounts: false,
     canManageDailyClosing: false,
-    canManageSubscribers: false
+    canManageSubscribers: true,
+    canAddSubscriberBills: true
   }
 };
 
@@ -123,13 +130,18 @@ export function SystemUsersSection({ currentUserId }: SystemUsersSectionProps) {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
+  // Delete User Confirmation Modal states
+  const [userToDeleteModal, setUserToDeleteModal] = useState<AppUser | null>(null);
+  const [isDeletingUser, setIsDeletingUser] = useState(false);
+  const [deleteUserError, setDeleteUserError] = useState('');
+
   // Start editing a user
   const startEditUser = (user: AppUser) => {
     setEditingUser(user);
     setEmail(user.email);
     setPassword(user.password || '');
     setRole(user.role);
-    setPermissions(user.permissions);
+    setPermissions(user.permissions || DEFAULT_PERMISSIONS[user.role]);
     setMenuAccess(user.menuAccess || DEFAULT_MENU_ACCESS);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -269,21 +281,28 @@ export function SystemUsersSection({ currentUserId }: SystemUsersSectionProps) {
   };
 
   // Delete User
-  const handleDeleteUser = async (userToDelete: AppUser) => {
+  const handleDeleteUser = (userToDelete: AppUser) => {
     if (userToDelete.id === currentUserId) {
-      alert('You cannot delete your own logged-in user account!');
+      setError('You cannot delete your own logged-in user account!');
       return;
     }
+    setUserToDeleteModal(userToDelete);
+    setDeleteUserError('');
+  };
 
-    if (!window.confirm(`Are you sure you want to permanently delete user "${userToDelete.email}"? This will revoke their platform permissions.`)) {
-      return;
-    }
-
+  const handleConfirmDeleteUser = async () => {
+    if (!userToDeleteModal) return;
+    setIsDeletingUser(true);
+    setDeleteUserError('');
     try {
-      await deleteDoc(doc(db, 'app_users', userToDelete.id));
-      alert(`User "${userToDelete.email}" permissions have been successfully deleted from the database.`);
-    } catch (err) {
-      handleFirestoreError(err, OperationType.DELETE, `app_users/${userToDelete.id}`);
+      await deleteDoc(doc(db, 'app_users', userToDeleteModal.id));
+      setSuccess(`User "${userToDeleteModal.email}" has been successfully deleted.`);
+      setUserToDeleteModal(null);
+    } catch (err: any) {
+      console.error('Failed to delete user:', err);
+      setDeleteUserError(err?.message || 'Failed to delete user.');
+    } finally {
+      setIsDeletingUser(false);
     }
   };
 
@@ -403,7 +422,7 @@ export function SystemUsersSection({ currentUserId }: SystemUsersSectionProps) {
                 <label className="flex items-center gap-2.5 p-2 bg-slate-50 hover:bg-slate-100/80 rounded-xl border border-slate-200/50 cursor-pointer transition select-none">
                   <input 
                     type="checkbox"
-                    checked={permissions.canDeleteTransactions}
+                    checked={permissions?.canDeleteTransactions || false}
                     onChange={() => togglePermission('canDeleteTransactions')}
                     className="rounded text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5"
                     disabled={loading}
@@ -417,7 +436,7 @@ export function SystemUsersSection({ currentUserId }: SystemUsersSectionProps) {
                 <label className="flex items-center gap-2.5 p-2 bg-slate-50 hover:bg-slate-100/80 rounded-xl border border-slate-200/50 cursor-pointer transition select-none">
                   <input 
                     type="checkbox"
-                    checked={permissions.canDeleteVouchers}
+                    checked={permissions?.canDeleteVouchers || false}
                     onChange={() => togglePermission('canDeleteVouchers')}
                     className="rounded text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5"
                     disabled={loading}
@@ -431,49 +450,49 @@ export function SystemUsersSection({ currentUserId }: SystemUsersSectionProps) {
                 <label className="flex items-center gap-2.5 p-2 bg-slate-50 hover:bg-slate-100/80 rounded-xl border border-slate-200/50 cursor-pointer transition select-none">
                   <input 
                     type="checkbox"
-                    checked={permissions.canApproveSupervisor}
+                    checked={permissions?.canApproveSupervisor || false}
                     onChange={() => togglePermission('canApproveSupervisor')}
                     className="rounded text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5"
                     disabled={loading}
                   />
                   <div className="text-left">
                     <span className="text-xs font-bold text-slate-800 block">Supervisor Approvals</span>
-                    <span className="text-[9px] text-slate-500 block leading-tight">Can review and approve vouchers at Step 2</span>
+                    <span className="text-[9px] text-slate-500 block leading-tight">Can review and approve home user bills & vouchers at Layer 1</span>
                   </div>
                 </label>
 
                 <label className="flex items-center gap-2.5 p-2 bg-slate-50 hover:bg-slate-100/80 rounded-xl border border-slate-200/50 cursor-pointer transition select-none">
                   <input 
                     type="checkbox"
-                    checked={permissions.canApproveManager}
+                    checked={permissions?.canApproveManager || false}
                     onChange={() => togglePermission('canApproveManager')}
                     className="rounded text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5"
                     disabled={loading}
                   />
                   <div className="text-left">
                     <span className="text-xs font-bold text-slate-800 block">Manager Approvals</span>
-                    <span className="text-[9px] text-slate-500 block leading-tight">Can review and approve vouchers at Step 3</span>
+                    <span className="text-[9px] text-slate-500 block leading-tight">Can review and approve home user bills & vouchers at Layer 2</span>
                   </div>
                 </label>
 
                 <label className="flex items-center gap-2.5 p-2 bg-slate-50 hover:bg-slate-100/80 rounded-xl border border-slate-200/50 cursor-pointer transition select-none">
                   <input 
                     type="checkbox"
-                    checked={permissions.canApproveAccounts}
+                    checked={permissions?.canApproveAccounts || false}
                     onChange={() => togglePermission('canApproveAccounts')}
                     className="rounded text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5"
                     disabled={loading}
                   />
                   <div className="text-left">
-                    <span className="text-xs font-bold text-slate-800 block">Accounts Post & Vet</span>
-                    <span className="text-[9px] text-slate-500 block leading-tight">Can commit vouchers to general ledger</span>
+                    <span className="text-xs font-bold text-slate-800 block">Accounts Post & Final Approval</span>
+                    <span className="text-[9px] text-slate-500 block leading-tight">Can grant final approval & commit home bills and vouchers to ledger</span>
                   </div>
                 </label>
 
                 <label className="flex items-center gap-2.5 p-2 bg-slate-50 hover:bg-slate-100/80 rounded-xl border border-slate-200/50 cursor-pointer transition select-none">
                   <input 
                     type="checkbox"
-                    checked={permissions.canManageDailyClosing}
+                    checked={permissions?.canManageDailyClosing || false}
                     onChange={() => togglePermission('canManageDailyClosing')}
                     className="rounded text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5"
                     disabled={loading}
@@ -487,7 +506,7 @@ export function SystemUsersSection({ currentUserId }: SystemUsersSectionProps) {
                 <label className="flex items-center gap-2.5 p-2 bg-slate-50 hover:bg-slate-100/80 rounded-xl border border-slate-200/50 cursor-pointer transition select-none">
                   <input 
                     type="checkbox"
-                    checked={permissions.canManageSubscribers}
+                    checked={permissions?.canManageSubscribers || false}
                     onChange={() => togglePermission('canManageSubscribers')}
                     className="rounded text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5"
                     disabled={loading}
@@ -495,6 +514,20 @@ export function SystemUsersSection({ currentUserId }: SystemUsersSectionProps) {
                   <div className="text-left">
                     <span className="text-xs font-bold text-slate-800 block">Subscriber Management</span>
                     <span className="text-[9px] text-slate-500 block leading-tight">Can manage Home Users and Reseller lines</span>
+                  </div>
+                </label>
+
+                <label className="flex items-center gap-2.5 p-2 bg-slate-50 hover:bg-slate-100/80 rounded-xl border border-slate-200/50 cursor-pointer transition select-none">
+                  <input 
+                    type="checkbox"
+                    checked={permissions?.canAddSubscriberBills ?? true}
+                    onChange={() => togglePermission('canAddSubscriberBills')}
+                    className="rounded text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5"
+                    disabled={loading}
+                  />
+                  <div className="text-left">
+                    <span className="text-xs font-bold text-slate-800 block">Add Subscriber Bills</span>
+                    <span className="text-[9px] text-slate-500 block leading-tight">Can add and enter subscriber bill payments</span>
                   </div>
                 </label>
               </div>
@@ -697,6 +730,9 @@ export function SystemUsersSection({ currentUserId }: SystemUsersSectionProps) {
                           {item.permissions?.canManageSubscribers && (
                             <span className="bg-teal-50 text-teal-600 text-[8px] font-bold px-1.5 py-0.5 rounded border border-teal-100">Subscribers</span>
                           )}
+                          {item.permissions?.canAddSubscriberBills && (
+                            <span className="bg-emerald-50 text-emerald-600 text-[8px] font-bold px-1.5 py-0.5 rounded border border-emerald-100">Add Bills</span>
+                          )}
                           {!Object.values(item.permissions || {}).some(Boolean) && (
                             <span className="text-slate-400 italic text-[9px] font-semibold">No active permissions</span>
                           )}
@@ -741,6 +777,98 @@ export function SystemUsersSection({ currentUserId }: SystemUsersSectionProps) {
           </div>
         </div>
       </div>
+
+      {/* Delete User In-App Confirmation Modal */}
+      {userToDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-100 overflow-hidden">
+            {/* Header */}
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-rose-50/50">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
+                  <Trash2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-800">Delete User Account</h3>
+                  <p className="text-xs text-slate-500 font-medium">Revoke platform access and delete record</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setUserToDeleteModal(null)}
+                disabled={isDeletingUser}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-6 space-y-4">
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/60 space-y-2 text-xs">
+                <div className="flex justify-between items-center py-0.5 border-b border-slate-200/40">
+                  <span className="text-slate-500 font-medium">Email Address:</span>
+                  <span className="font-bold text-slate-800">{userToDeleteModal.email}</span>
+                </div>
+                <div className="flex justify-between items-center py-0.5 border-b border-slate-200/40">
+                  <span className="text-slate-500 font-medium">Assigned Role:</span>
+                  <span className="font-bold uppercase text-indigo-600 text-[10px] bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
+                    {userToDeleteModal.role}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center py-0.5">
+                  <span className="text-slate-500 font-medium">Account ID:</span>
+                  <span className="font-mono text-slate-600 text-[11px] truncate max-w-[200px]">{userToDeleteModal.id}</span>
+                </div>
+              </div>
+
+              <div className="p-3.5 bg-rose-50 border border-rose-200/60 rounded-xl flex items-start gap-2.5 text-xs text-rose-700">
+                <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                <p className="leading-snug font-medium">
+                  <strong>Permanent Action:</strong> Are you sure you want to permanently delete user "{userToDeleteModal.email}"? All system access permissions for this account will be immediately revoked.
+                </p>
+              </div>
+
+              {deleteUserError && (
+                <div className="p-3 bg-red-50 border border-red-200 text-red-600 text-xs rounded-xl flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{deleteUserError}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Footer Buttons */}
+            <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setUserToDeleteModal(null)}
+                disabled={isDeletingUser}
+                className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl text-xs font-bold hover:bg-slate-100 transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDeleteUser}
+                disabled={isDeletingUser}
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer shadow-md shadow-rose-600/20 disabled:opacity-50"
+              >
+                {isDeletingUser ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span>Deleting User...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Delete User</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

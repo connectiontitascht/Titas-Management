@@ -44,8 +44,20 @@ export interface Transaction {
   billingMonth?: string;
   collectorName?: string;
   receiverName?: string;
-  status?: 'pending' | 'manager_approved' | 'accountant_approved' | 'rejected';
+  status?: 'pending_supervisor' | 'pending_manager' | 'pending_accounts' | 'approved' | 'rejected';
   rejectionReason?: string;
+  supervisorApprovedBy?: string;
+  managerApprovedBy?: string;
+  accountsApprovedBy?: string;
+  supervisorApprovedAt?: string;
+  managerApprovedAt?: string;
+  accountsApprovedAt?: string;
+  supervisorComment?: string;
+  managerComment?: string;
+  accountsComment?: string;
+  supervisorDesignation?: string;
+  managerDesignation?: string;
+  accountsDesignation?: string;
   isDailyClosing?: boolean;
 }
 
@@ -206,6 +218,7 @@ export type UserRole = 'admin' | 'supervisor' | 'manager' | 'accountant' | 'oper
 export interface AppUser {
   id: string; // Document ID (usually email, or generated uid if authenticated)
   email: string;
+  displayName?: string;
   password?: string; // Optional custom user password
   isCustomUser?: boolean; // Optional flag indicating this user is Firestore-only
   role: UserRole;
@@ -217,6 +230,7 @@ export interface AppUser {
     canApproveAccounts: boolean;
     canManageDailyClosing: boolean;
     canManageSubscribers: boolean;
+    canAddSubscriberBills?: boolean;
   };
   menuAccess?: {
     showDashboard: boolean;
