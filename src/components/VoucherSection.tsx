@@ -862,7 +862,7 @@ export function VoucherSection({ userId, onAddTransaction, currentUserProfile }:
       const day = String(today.getDate()).padStart(2, '0');
       const count = vouchers.length;
       const serial = String(count + 1).padStart(3, '0');
-      setTitle(`VOU-${year}${month}${day}-${serial}`);
+      setTitle(`${year}${month}${day}-VOU-${serial}`);
     }
   }, [loading, vouchers.length, title]);
 
