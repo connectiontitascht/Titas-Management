@@ -1076,6 +1076,12 @@ export function HomeUserSection({ userId, onAddTransaction, transactions, curren
       if (pMethod !== onScreenPaymentMethodFilter) return false;
     }
 
+    // 2.5 Show only today's data by default (unless filtered by date)
+    const today = new Date().toISOString().split('T')[0];
+    if (!startDateFilter && !endDateFilter) {
+      if (t.date !== today) return false;
+    }
+
     // 3. Filter by search query
     const qStr = searchQuery.toLowerCase();
     if (!qStr) return true;

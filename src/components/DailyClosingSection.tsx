@@ -2792,13 +2792,13 @@ export function DailyClosingSection({ userId, transactions, currentUserProfile }
                         </span>
                       </td>
                       <td className={`py-3 px-4 text-xs font-mono font-bold text-right ${tx.type === 'income' ? 'text-emerald-600' : 'text-rose-600'}`}>
-                        {tx.type === 'income' ? '+' : '-'}{tx.amount.toLocaleString()} BDT
+                        {tx.type === 'income' ? '+' : '-'}{(tx.amount ?? 0).toLocaleString()} BDT
                       </td>
                       <td className="py-3 px-4 text-xs font-mono text-right text-slate-500">
-                        {prevBal.toLocaleString()} BDT
+                        {(prevBal ?? 0).toLocaleString()} BDT
                       </td>
                       <td className="py-3 px-4 text-xs font-mono font-extrabold text-right text-indigo-900">
-                        {closingBal.toLocaleString()} BDT
+                        {(closingBal ?? 0).toLocaleString()} BDT
                       </td>
                       <td className="py-3 px-6 text-center">
                         {isTxDateClosed ? (

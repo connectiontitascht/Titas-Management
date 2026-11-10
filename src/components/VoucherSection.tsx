@@ -1271,6 +1271,10 @@ export function VoucherSection({ userId, onAddTransaction, currentUserProfile }:
 
   // Filter list
   const filteredVouchers = vouchers.filter(v => {
+    // Show only today's data by default
+    const today = new Date().toISOString().split('T')[0];
+    if (v.date !== today) return false;
+
     if (statusFilter === 'all') return true;
     if (statusFilter === 'pending') {
       return v.status === 'pending' || v.status === 'waiting_manager' || v.status === 'waiting_accounts';
@@ -1907,6 +1911,7 @@ export function VoucherSection({ userId, onAddTransaction, currentUserProfile }:
                 <thead>
                   <tr className="border-b border-slate-200 text-xs text-slate-400 font-bold uppercase select-none">
                     <th className="py-3 px-2 w-8"></th>
+                    <th className="py-3 px-3">Date</th>
                     <th className="py-3 px-3">Voucher ID</th>
                     <th className="py-3 px-3">Voucher Creator</th>
                     <th className="py-3 px-3">Approver Name</th>
@@ -1939,6 +1944,11 @@ export function VoucherSection({ userId, onAddTransaction, currentUserProfile }:
                                 ▶
                               </span>
                             </button>
+                          </td>
+
+                          {/* Date */}
+                          <td className="py-3.5 px-3 font-mono text-slate-500 whitespace-nowrap text-xs">
+                            {voucher.date}
                           </td>
 
                           {/* Voucher ID */}
