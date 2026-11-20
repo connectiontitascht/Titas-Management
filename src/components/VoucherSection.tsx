@@ -1271,10 +1271,6 @@ export function VoucherSection({ userId, onAddTransaction, currentUserProfile }:
 
   // Filter list
   const filteredVouchers = vouchers.filter(v => {
-    // Show only today's data by default
-    const today = new Date().toISOString().split('T')[0];
-    if (v.date !== today) return false;
-
     if (statusFilter === 'all') return true;
     if (statusFilter === 'pending') {
       return v.status === 'pending' || v.status === 'waiting_manager' || v.status === 'waiting_accounts';
