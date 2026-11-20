@@ -1093,6 +1093,7 @@ export function HomeUserSection({ userId, onAddTransaction, transactions, curren
   const totalApprovedAmount = filteredBills.filter(t => t.status === 'approved' || t.status === 'accountant_approved').reduce((sum, t) => sum + t.amount, 0);
   const totalPendingAmount = filteredBills.filter(t => ['pending', 'pending_supervisor', 'pending_manager', 'pending_accounts'].includes(t.status || '')).reduce((sum, t) => sum + t.amount, 0);
   const totalCollectedCount = filteredBills.length;
+  const totalFilteredAmount = filteredBills.reduce((sum, t) => sum + (t.amount || 0), 0);
 
   // Dashboard Overview Metrics (filtered by specified date range / running month only)
   const totalUniqueClients = React.useMemo(() => {
@@ -2333,6 +2334,18 @@ export function HomeUserSection({ userId, onAddTransaction, transactions, curren
             <Download className="w-3.5 h-3.5" />
             <span>PDF Download</span>
           </button>
+        </div>
+
+        {/* Filtered Summary Banner / Total Amount */}
+        <div className="bg-indigo-50/70 border border-indigo-100 rounded-xl px-4 py-3 flex items-center justify-between text-xs">
+          <div className="flex items-center gap-2">
+            <span className="font-bold text-slate-700">Showing Entries:</span>
+            <span className="bg-indigo-600 text-white font-bold px-2 py-0.5 rounded-full text-[11px]">{filteredBills.length}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="font-bold text-slate-700">Total Filtered Amount:</span>
+            <span className="font-mono font-black text-indigo-900 text-sm">৳ {totalFilteredAmount.toLocaleString('en-US')}</span>
+          </div>
         </div>
 
         {/* Data Table */}

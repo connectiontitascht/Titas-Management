@@ -15,7 +15,9 @@ import {
   ListFilter,
   Pencil,
   Download,
-  ShieldAlert
+  ShieldAlert,
+  Search,
+  X
 } from 'lucide-react';
 import { 
   collection, 
@@ -850,8 +852,12 @@ export function VoucherSection({ userId, onAddTransaction, currentUserProfile }:
     setAmount('0');
   }, [category]);
 
-  // Status Filter State
+  // Status Filter State & Advanced Filters
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [startDateFilter, setStartDateFilter] = useState('');
+  const [endDateFilter, setEndDateFilter] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('all');
 
   // Auto-generate voucher number once vouchers list is loaded and if the title is empty
   useEffect(() => {
@@ -1271,16 +1277,42 @@ export function VoucherSection({ userId, onAddTransaction, currentUserProfile }:
 
   // Filter list
   const filteredVouchers = vouchers.filter(v => {
-    if (statusFilter === 'all') return true;
-    if (statusFilter === 'pending') {
-      return v.status === 'pending' || v.status === 'waiting_manager' || v.status === 'waiting_accounts';
+    // 1. Status Filter
+    if (statusFilter !== 'all') {
+      if (statusFilter === 'pending') {
+        if (!(v.status === 'pending' || v.status === 'waiting_manager' || v.status === 'waiting_accounts')) return false;
+      } else {
+        if (v.status !== statusFilter) return false;
+      }
     }
-    return v.status === statusFilter;
+
+    // 2. Date Range Filter
+    if (startDateFilter && v.date < startDateFilter) return false;
+    if (endDateFilter && v.date > endDateFilter) return false;
+
+    // 3. Category Filter
+    if (categoryFilter !== 'all' && v.category !== categoryFilter) return false;
+
+    // 4. Search Query Filter
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      const matchTitle = v.title.toLowerCase().includes(q);
+      const matchCreator = v.submittedBy.toLowerCase().includes(q);
+      const matchNotes = (v.notes || '').toLowerCase().includes(q);
+      const matchCategory = (EXPENSE_CATEGORY_LABELS[v.category as keyof typeof EXPENSE_CATEGORY_LABELS]?.label || v.category).toLowerCase().includes(q);
+      const matchApprover = (v.accountsApprovedBy || v.managerApprovedBy || v.supervisorApprovedBy || '').toLowerCase().includes(q);
+      if (!matchTitle && !matchCreator && !matchNotes && !matchCategory && !matchApprover) {
+        return false;
+      }
+    }
+
+    return true;
   });
 
   // Calculations
   const statsTotalCount = vouchers.length;
   const statsTotalAmount = vouchers.reduce((acc, v) => acc + v.amount, 0);
+  const totalFilteredVoucherAmount = filteredVouchers.reduce((sum, v) => sum + (v.amount || 0), 0);
 
   const statsPendingCount = vouchers.filter(v => v.status === 'pending' || v.status === 'waiting_manager' || v.status === 'waiting_accounts').length;
   const statsPendingAmount = vouchers.filter(v => v.status === 'pending' || v.status === 'waiting_manager' || v.status === 'waiting_accounts').reduce((acc, v) => acc + v.amount, 0);
@@ -1888,6 +1920,99 @@ export function VoucherSection({ userId, onAddTransaction, currentUserProfile }:
                   Rejected
                 </button>
               </div>
+            </div>
+          </div>
+
+          {/* Advanced Filtering Toolbar */}
+          <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 flex flex-wrap items-center gap-3">
+            {/* Search input */}
+            <div className="relative flex-1 min-w-[220px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search voucher ID, creator, approver, notes..."
+                className="w-full pl-9 pr-8 py-2 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* Start Date */}
+            <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-xl px-3 py-1.5">
+              <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+              <span className="text-[11px] font-bold text-slate-500">From:</span>
+              <input
+                type="date"
+                value={startDateFilter}
+                onChange={(e) => setStartDateFilter(e.target.value)}
+                className="text-xs font-mono font-bold text-slate-800 bg-transparent focus:outline-none"
+              />
+            </div>
+
+            {/* End Date */}
+            <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-xl px-3 py-1.5">
+              <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+              <span className="text-[11px] font-bold text-slate-500">To:</span>
+              <input
+                type="date"
+                value={endDateFilter}
+                onChange={(e) => setEndDateFilter(e.target.value)}
+                className="text-xs font-mono font-bold text-slate-800 bg-transparent focus:outline-none"
+              />
+            </div>
+
+            {/* Category Filter */}
+            <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-xl px-3 py-1.5">
+              <span className="text-[11px] font-bold text-slate-500">Category:</span>
+              <select
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                className="text-xs font-bold text-slate-800 bg-transparent focus:outline-none cursor-pointer"
+              >
+                <option value="all">All Categories</option>
+                {Object.entries(EXPENSE_CATEGORY_LABELS).map(([key, val]) => (
+                  <option key={key} value={key}>{val.label}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Reset Filters */}
+            {(searchQuery || startDateFilter || endDateFilter || categoryFilter !== 'all' || statusFilter !== 'all') && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery('');
+                  setStartDateFilter('');
+                  setEndDateFilter('');
+                  setCategoryFilter('all');
+                  setStatusFilter('all');
+                }}
+                className="px-3 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+                <span>Reset Filters</span>
+              </button>
+            )}
+          </div>
+
+          {/* Filtered Summary Banner / Total Amount */}
+          <div className="bg-indigo-50/70 border border-indigo-100 rounded-xl px-4 py-3 flex items-center justify-between text-xs">
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-slate-700">Showing Vouchers:</span>
+              <span className="bg-indigo-600 text-white font-bold px-2 py-0.5 rounded-full text-[11px]">{filteredVouchers.length}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-slate-700">Total Filtered Amount:</span>
+              <span className="font-mono font-black text-indigo-900 text-sm">৳ {totalFilteredVoucherAmount.toLocaleString('en-US')}</span>
             </div>
           </div>
 
