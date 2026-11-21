@@ -33,6 +33,7 @@ import {
 } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { Voucher, Transaction, EXPENSE_CATEGORY_LABELS, AppUser } from '../types';
+import { PaymentMethodLogo } from './PaymentLogos';
 
 interface VoucherSectionProps {
   userId: string;
@@ -73,6 +74,7 @@ export function VoucherSection({ userId, onAddTransaction, currentUserProfile }:
   const [category, setCategory] = useState('other_expense');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [submittedBy, setSubmittedBy] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('Cash');
   const [notes, setNotes] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -1074,6 +1076,7 @@ export function VoucherSection({ userId, onAddTransaction, currentUserProfile }:
         category,
         date,
         submittedBy: submittedBy.trim(),
+        paymentMethod: paymentMethod || 'Cash',
         status: 'pending',
         notes: notes.trim(),
         rejectionReason: '',
@@ -1089,6 +1092,7 @@ export function VoucherSection({ userId, onAddTransaction, currentUserProfile }:
       setAmount('');
       setNotes('');
       setSubmittedBy('');
+      setPaymentMethod('Cash');
       setAttachmentName('');
       setAttachmentData('');
       setTransportLogs([]);
@@ -1768,7 +1772,7 @@ export function VoucherSection({ userId, onAddTransaction, currentUserProfile }:
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <label className="block text-xs font-bold text-slate-600 mb-1">Voucher Date *</label>
                 <input
@@ -1788,6 +1792,22 @@ export function VoucherSection({ userId, onAddTransaction, currentUserProfile }:
                   onChange={(e) => setSubmittedBy(e.target.value)}
                   className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-indigo-500 text-slate-800 text-xs"
                 />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1">Payment Method *</label>
+                <select
+                  value={paymentMethod}
+                  onChange={(e) => setPaymentMethod(e.target.value)}
+                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-indigo-500 text-slate-800 text-xs font-semibold bg-white cursor-pointer"
+                >
+                  <option value="Cash">Cash</option>
+                  <option value="bKash">bKash</option>
+                  <option value="Nagad">Nagad</option>
+                  <option value="Rocket">Rocket</option>
+                  <option value="Bank Transfer">Bank Transfer</option>
+                  <option value="SSLCommerz">SSLCommerz</option>
+                </select>
               </div>
             </div>
 
@@ -2028,23 +2048,23 @@ export function VoucherSection({ userId, onAddTransaction, currentUserProfile }:
             </div>
           ) : (
             <div className="overflow-x-auto max-h-[580px] overflow-y-auto pr-1">
-              <table className="w-full min-w-[1000px] text-left border-collapse">
-                <thead>
-                  <tr className="border-b border-slate-200 text-xs text-slate-400 font-bold uppercase select-none">
-                    <th className="py-3 px-2 w-8"></th>
-                    <th className="py-3 px-3">Date</th>
-                    <th className="py-3 px-3">Voucher ID</th>
-                    <th className="py-3 px-3">Voucher Creator</th>
-                    <th className="py-3 px-3">Approver Name</th>
-                    <th className="py-3 px-3">Payment Method</th>
-                    <th className="py-3 px-3">Category</th>
-                    <th className="py-3 px-3">Type</th>
-                    <th className="py-3 px-3 text-right">Amount</th>
-                    <th className="py-3 px-3 text-center">Status</th>
-                    <th className="py-3 px-3 text-center">Actions</th>
+              <table className="w-full min-w-[1000px] text-left border-separate border-spacing-0">
+                <thead className="sticky top-0 z-20 bg-white">
+                  <tr className="text-xs text-slate-400 font-bold uppercase select-none bg-white">
+                    <th className="sticky top-0 z-20 py-3 px-2 w-8 bg-white border-b border-slate-200"></th>
+                    <th className="sticky top-0 z-20 py-3 px-3 bg-white border-b border-slate-200">Date</th>
+                    <th className="sticky top-0 z-20 py-3 px-3 bg-white border-b border-slate-200">Voucher ID</th>
+                    <th className="sticky top-0 z-20 py-3 px-3 bg-white border-b border-slate-200">Voucher Creator</th>
+                    <th className="sticky top-0 z-20 py-3 px-3 bg-white border-b border-slate-200">Approver Name</th>
+                    <th className="sticky top-0 z-20 py-3 px-3 bg-white border-b border-slate-200">Payment Method</th>
+                    <th className="sticky top-0 z-20 py-3 px-3 bg-white border-b border-slate-200">Category</th>
+                    <th className="sticky top-0 z-20 py-3 px-3 bg-white border-b border-slate-200">Type</th>
+                    <th className="sticky top-0 z-20 py-3 px-3 text-right bg-white border-b border-slate-200">Amount</th>
+                    <th className="sticky top-0 z-20 py-3 px-3 text-center bg-white border-b border-slate-200">Status</th>
+                    <th className="sticky top-0 z-20 py-3 px-3 text-center bg-white border-b border-slate-200">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 text-xs">
+                <tbody className="text-xs [&_td]:border-b [&_td]:border-slate-100">
                   {filteredVouchers.map((voucher) => {
                     const categoryInfo = EXPENSE_CATEGORY_LABELS[voucher.category as keyof typeof EXPENSE_CATEGORY_LABELS] || { label: 'Other Expense', color: 'bg-slate-500' };
                     const isExpanded = !!expandedVouchers[voucher.id];
@@ -2090,7 +2110,8 @@ export function VoucherSection({ userId, onAddTransaction, currentUserProfile }:
                           {/* Payment Method */}
                           <td className="py-3.5 px-3 whitespace-nowrap">
                             <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200/50">
-                              💵 Cash
+                              <PaymentMethodLogo method={voucher.paymentMethod} className="w-3.5 h-3.5" />
+                              <span>{voucher.paymentMethod || 'Cash'}</span>
                             </span>
                           </td>
 

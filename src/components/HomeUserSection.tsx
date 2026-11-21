@@ -2356,22 +2356,22 @@ export function HomeUserSection({ userId, onAddTransaction, transactions, curren
           </div>
         ) : (
           <div className="overflow-x-auto max-h-[580px] overflow-y-auto pr-1">
-            <table className="w-full min-w-[1000px] text-left border-collapse">
-              <thead>
-                <tr className="border-b border-slate-200 text-xs text-slate-400 font-bold uppercase select-none">
-                  <th className="py-3 px-2 w-8"></th>
-                  <th className="py-3 px-3">Date (Entry Time)</th>
-                  <th className="py-3 px-3">Client ID</th>
-                  <th className="py-3 px-3">Client Name</th>
-                  <th className="py-3 px-3">Billing Month</th>
-                  <th className="py-3 px-3 text-center">Payment Method</th>
-                  <th className="py-3 px-3">Collector Name</th>
-                  <th className="py-3 px-3 text-right">Amount</th>
-                  <th className="py-3 px-3 text-center">Status</th>
-                  <th className="py-3 px-3 text-center">Actions</th>
+            <table className="w-full min-w-[1000px] text-left border-separate border-spacing-0">
+              <thead className="sticky top-0 z-20 bg-white">
+                <tr className="text-xs text-slate-400 font-bold uppercase select-none bg-white">
+                  <th className="sticky top-0 z-20 py-3 px-2 w-8 bg-white border-b border-slate-200"></th>
+                  <th className="sticky top-0 z-20 py-3 px-3 bg-white border-b border-slate-200">Date (Entry Time)</th>
+                  <th className="sticky top-0 z-20 py-3 px-3 bg-white border-b border-slate-200">Client ID</th>
+                  <th className="sticky top-0 z-20 py-3 px-3 bg-white border-b border-slate-200">Client Name</th>
+                  <th className="sticky top-0 z-20 py-3 px-3 bg-white border-b border-slate-200">Billing Month</th>
+                  <th className="sticky top-0 z-20 py-3 px-3 text-center bg-white border-b border-slate-200">Payment Method</th>
+                  <th className="sticky top-0 z-20 py-3 px-3 bg-white border-b border-slate-200">Collector Name</th>
+                  <th className="sticky top-0 z-20 py-3 px-3 text-right bg-white border-b border-slate-200">Amount</th>
+                  <th className="sticky top-0 z-20 py-3 px-3 text-center bg-white border-b border-slate-200">Status</th>
+                  <th className="sticky top-0 z-20 py-3 px-3 text-center bg-white border-b border-slate-200">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 text-xs">
+              <tbody className="text-xs [&_td]:border-b [&_td]:border-slate-100">
                 {filteredBills.map((bill) => {
                   const clientName = bill.title ? bill.title.replace(/Home Subscriber Monthly Bill: |Home User Monthly Bill: |হোম ইউজার মাসিক বিল: /g, '').replace(/[()]/g, '') : '—';
                   const isExpanded = !!expandedBills[bill.id];

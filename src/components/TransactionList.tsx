@@ -51,15 +51,17 @@ export function TransactionList({ transactions, onDeleteTransaction, onDeleteAll
   };
 
   const extractVoucherId = (title: string): string => {
-    const match = title.match(/(VOU-[A-Z0-9-]+)/i);
+    const match = title.match(/([0-9]+-VOU-[A-Z0-9-]+|VOU-[A-Z0-9-]+)/i);
     return match ? match[1].toUpperCase() : title;
   };
 
   const extractClientName = (title: string): string => {
     let cleaned = title;
-    cleaned = cleaned.replace('Home User Monthly Bill: ', '');
-    cleaned = cleaned.replace('হোম ইউজার মাসিক বিল: ', '');
-    cleaned = cleaned.replace('Voucher Approved: ', '');
+    cleaned = cleaned.replace(/Home Subscriber Monthly Bill:\s*/gi, '');
+    cleaned = cleaned.replace(/Home User Monthly Bill:\s*/gi, '');
+    cleaned = cleaned.replace(/হোম ইউজার মাসিক বিল:\s*/g, '');
+    cleaned = cleaned.replace(/হোম সাবস্ক্রাইবার মান্থলি বিল:\s*/g, '');
+    cleaned = cleaned.replace(/Voucher Approved:\s*/gi, '');
     cleaned = cleaned.replace(/[()]/g, '');
     return cleaned.trim();
   };
@@ -525,7 +527,7 @@ export function TransactionList({ transactions, onDeleteTransaction, onDeleteAll
 
               <div class="flex justify-between items-center py-2 border-b border-dashed border-slate-100">
                 <span class="text-slate-400 font-bold">Particulars / Details:</span>
-                <span class="font-extrabold text-slate-800 text-right max-w-[220px] leading-tight">${t.title}</span>
+                <span class="font-extrabold text-slate-800 text-right max-w-[220px] leading-tight">${isVoucherTx(t.title) ? extractVoucherId(t.title) : extractClientName(t.title)}</span>
               </div>
 
               <div class="flex justify-between items-center py-2 border-b border-dashed border-slate-100">
@@ -621,7 +623,7 @@ export function TransactionList({ transactions, onDeleteTransaction, onDeleteAll
       headers.join(','),
       ...sortedTransactions.map(t => [
         `"${t.date}"`,
-        `"${t.title.replace(/"/g, '""')}"`,
+        `"${(isVoucherTx(t.title) ? extractVoucherId(t.title) : extractClientName(t.title)).replace(/"/g, '""')}"`,
         `"${t.type}"`,
         `"${t.category}"`,
         t.amount,
@@ -1028,7 +1030,7 @@ export function TransactionList({ transactions, onDeleteTransaction, onDeleteAll
                 <tr>
                     <td style="text-align: center; color: #475569; font-weight: 500; font-family: sans-serif;">${t.date}</td>
                     <td>
-                        <div style="font-weight: 700; color: #0f172a;">${t.title}</div>
+                        <div style="font-weight: 700; color: #0f172a;">${isVoucherTx(t.title) ? extractVoucherId(t.title) : extractClientName(t.title)}</div>
                         <div style="font-size: 10px; color: #64748b; margin-top: 2px;">Category: ${ALL_CATEGORY_LABELS[t.category]?.label || t.category}${pMethod}</div>
                     </td>
                     <td style="text-align: center;">
